@@ -1,0 +1,22 @@
+# Secrets — never commit
+.env
+.env.*
+!.env.example
+infra/langfuse/.env
+
+# Claude Code local state (credentials, per-machine overrides)
+.claude/settings.local.json
+.claude/*.local.json
+
+# Serena
+.serena/cache/
+
+# graphify knowledge graph (regenerate with `graphify update .`)
+graphify-out/
+
+# OS / editor
+Thumbs.db
+Desktop.ini
+.DS_Store
+.vscode/
+.idea/
