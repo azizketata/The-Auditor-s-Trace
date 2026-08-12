@@ -1,0 +1,33 @@
+name: check
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  check:
+    # Development happens on Windows and the headline claim is bitwise
+    # determinism, so cross-platform drift has to be visible from day one.
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    env:
+      PYTHONHASHSEED: "0"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Install dependencies
+        run: uv sync --all-extras --locked
+
+      - name: Install GNU Make (Windows)
+        if: runner.os == 'Windows'
+        run: choco install make --no-progress -y
+
+      - name: make check
+        run: make check

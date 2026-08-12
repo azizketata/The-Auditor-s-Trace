@@ -4,6 +4,28 @@
 !.env.example
 infra/langfuse/.env
 
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+
+# Generated artefacts — regenerable by `make all` (invariant I5)
+data/seed/*
+!data/seed/.gitkeep
+data/generated/*
+!data/generated/.gitkeep
+results/*
+!results/.gitkeep
+
 # Claude Code local state (credentials, per-machine overrides)
 .claude/settings.local.json
 .claude/*.local.json

@@ -1,74 +1,60 @@
 # The Auditor's Trace
 
-<!-- Keep this file under ~200 directives. Every line is loaded into context on every
-     session — delete anything that stops being true rather than letting it rot. -->
+## What this is
 
-## Project
+A pipeline turning LLM-agent telemetry into EU AI Act audit evidence via
+object-centric process mining. Research artefact for ICPM 2027.
 
-_Not yet described. Fill in: what this builds, who uses it, the one-sentence goal._
+## Hard rules
 
-## Stack
+1. Determinism is the paper's headline claim. Never introduce nondeterminism
+   into the analysis path: no unsorted iteration, no wall-clock in hashes,
+   no LLM calls outside `scenario/` and `baselines/llm_judge.py`.
+2. Canonical JSON everywhere:
+   `json.dumps(obj, sort_keys=True, separators=(",", ":"), ensure_ascii=False)`
+3. No new dependencies without asking. See BUILD-PLAN.md section 4.
+4. Every constraint must carry a legal article reference. Rulesets without
+   one fail validation by design; do not relax this.
+5. `data/catalogue/violations.yaml` is frozen and tagged. Never edit it after
+   the tag. If it is wrong, stop and report.
 
-_Not yet chosen. Record languages, frameworks, and package manager here once set._
+## Workflow
+
+- Work one phase at a time, in order. See BUILD-PLAN.md section 9.
+- Write the named acceptance test first, watch it fail, then implement.
+- Run `make check` after every phase and report the results.
+- If a phase cannot be done as specified, stop and explain. Do not substitute
+  a different approach silently.
 
 ## Commands
 
-_Not yet defined. Record the build / test / lint / run commands here once they exist —
-this is the highest-value section of the file._
+```
+make check     # lint, typecheck, test
+make scenario  # generate spans
+make ingest    # spans -> OCEL
+make evaluate  # run all systems, compute metrics
+make all       # everything, from seed data to figures
+```
 
-## Working agreement
+Targets for phases not yet built exit 1 with the phase they need. That is
+deliberate — see hard rule 5 above and BUILD-PLAN.md section 0 rule 6.
 
-- Plan before non-trivial edits (shift+tab → plan mode). Get the plan approved, then build.
-- For anything with more than one moving part, use the spec-kit flow rather than
-  improvising: `/speckit-specify` → `/speckit-clarify` → `/speckit-plan` →
-  `/speckit-tasks` → `/speckit-implement`. Specs live in `specs/`.
-- Prefer editing existing files over creating new ones. Do not add README or docs files
-  unless asked.
-- Match surrounding code: its naming, comment density, and idiom. Do not add explanatory
-  comments the rest of the file would not have.
-- Never commit or push unless explicitly asked.
-- Never commit secrets. `infra/langfuse/.env` and any `.env` are gitignored — keep it so.
+## Current state
+
+Phase 0 complete: scaffold only. Every module under `src/auditors_trace/` is a
+stub whose functions raise `NotImplementedError`. Placeholder types (`OCELLog`,
+`Violation`, `EvidenceRecord`, ...) are declared but empty; Phase 1 replaces the
+model ones with BUILD-PLAN.md section 5's real definitions.
 
 ## Code navigation
 
-Search order for "where is X / how does Y work" — cheapest first:
-
 1. `graphify query "<question>"` — knowledge graph, scoped subgraph, no API cost.
-2. Serena MCP — LSP symbol lookup (`find_symbol`, `find_referencing_symbols`) and
-   symbol-level edits. Use it instead of reading whole files to locate a definition.
-3. Grep/Glob — only when the two above come up empty.
+2. Serena MCP — LSP symbol lookup and symbol-level edits, instead of reading
+   whole files to locate a definition.
+3. Grep/Glob — only when those come up empty.
 
-Read whole files only when you genuinely need the whole file.
-
-## Library docs
-
-Use Context7 MCP before writing against any third-party API. It returns docs pinned to
-the version in the lockfile — assume your training data is stale for anything moving.
-
-## Browser + testing
-
-- Playwright MCP for driving the app and writing E2E tests.
-- Chrome DevTools MCP for console errors, network waterfalls, and performance traces.
-- Do not claim a UI change works until it has been exercised in a real browser.
-
-## Observability
-
-LLM calls are traced to self-hosted Langfuse at `http://localhost:3000`
-(`infra/langfuse/`, `docker compose up -d`). Instrument with OpenTelemetry GenAI
-semantic conventions — span names `chat <model>` / `execute_tool <name>`, attributes
-under `gen_ai.*`. Do not hand-roll a tracing format.
-
-## Review
-
-- `/code-review` before opening a PR; `/security-review` when the diff touches auth,
-  input parsing, file paths, or anything network-facing.
-- Greptile reviews PRs on GitHub automatically; its comments are readable from here via
-  the greptile MCP tools.
-
-## Conventions
-
-_Add project-specific rules here as they are decided — naming, error handling, test
-layout, directory structure. Each one earns its place by having been gotten wrong once._
+Use Context7 MCP before writing against pm4py, pydantic, LangGraph, or the
+OpenTelemetry SDK. All four move fast; assume training data is stale.
 
 ## graphify
 
