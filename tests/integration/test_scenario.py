@@ -235,7 +235,9 @@ class TestContractCoverage:
                     qualifiers.add(rel.qualifier)
         assert event_types == set(EventType)
         assert object_types == set(ObjectType)
-        assert qualifiers == set(Qualifier)
+        # DECLARES is OCEL-level only, synthesized by the Phase 3 mapper for
+        # pure declarations; the scenario never emits it in spans.
+        assert qualifiers == set(Qualifier) - {Qualifier.DECLARES}
 
     def test_every_referenced_object_is_declared_exactly_once(
         self, traces: dict[str, list[dict[str, Any]]]

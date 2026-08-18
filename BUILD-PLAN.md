@@ -377,6 +377,8 @@ unless Phase 6 implements an actual signature.]*
 
 **Implementation notes.** Define object and event types exactly as section 5. `log.py` holds sorted, immutable collections. `io.py` wraps pm4py's OCEL 2.0 readers and writers for all three serialisations (XML, JSON, SQLite). Compute a canonical log hash: sha256 over canonical JSON of the sorted log content, excluding file metadata.
 
+*Gate spike result (19 Aug 2026, docs/SPIKE-pm4py-roundtrip.md; pinned in `tests/integration/test_pm4py_roundtrip.py`):* qualified relations **survive** all three serialisations — gate passed, no §12 fallback. Three pm4py behaviors constrain the model: (a) exporters silently delete objects with zero E2O relations plus any O2O edge touching them, so every pure declaration materialises as a `declares`-qualified E2O relation from its declaring event (new OCEL-level `Qualifier.DECLARES`, never emitted in `at.*` spans — contract `at-span/1` unchanged); (b) the JSON importer deduplicates E2O by (event, object) pair, so `OCELLog` enforces at most one relation per pair; (c) the JSON exporter truncates timestamps to whole seconds, which the simulated clock already emits. Round-trip "preserves" therefore means model → write → read → model equality; the log hash is computed over canonical JSON of the model, never over file bytes.
+
 **Acceptance tests.**
 - `test_roundtrip_json_preserves_log`
 - `test_roundtrip_xml_preserves_log`

@@ -59,8 +59,15 @@ class EventType(StrEnum):
 class Qualifier(StrEnum):
     """Event-to-object and object-to-object relation qualifiers.
 
-    The first twelve are E2O; the last three are O2O. The split is enforced by
-    ``model.span_contract`` at write and parse time.
+    The first twelve are span-level E2O; the last three are O2O. The split is
+    enforced by ``model.span_contract`` at write and parse time.
+
+    ``DECLARES`` is OCEL-level only: it never appears in ``at.*`` spans (a
+    pure declaration is a qualifier-less entry there). The Phase 3 mapper
+    synthesizes a ``declares`` E2O relation from the declaring event for every
+    pure declaration, because pm4py's OCEL 2.0 exporters silently delete any
+    object with zero E2O relations — and every O2O edge touching it (spike,
+    19 Aug 2026: ``docs/SPIKE-pm4py-roundtrip.md``).
     """
 
     PRODUCES = "produces"
@@ -78,6 +85,7 @@ class Qualifier(StrEnum):
     DELEGATES_TO = "delegates_to"
     DERIVED_FROM = "derived_from"
     SUBMITTED_BY = "submitted_by"
+    DECLARES = "declares"
 
 
 def object_type_attributes(object_type: ObjectType) -> tuple[str, ...]:
