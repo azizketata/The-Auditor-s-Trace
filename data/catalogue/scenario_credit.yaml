@@ -1,0 +1,199 @@
+# The credit-scoring scenario catalogue — the declarative definition of the
+# agent fleet, its tools, data resources, policy versions, and approver roster.
+#
+# This file is the re-skinning seam (BUILD-PLAN §9 Phase 2): a second scenario
+# is a second YAML plus its own node builders, and the Phase 3 mapper never
+# sees either. It is committed, unlike everything else under data/.
+#
+# Phase 4's injectors mutate the OCEL log this scenario produces; the entries
+# below are the raw material for violations V1-V8 (see the comments inline).
+# Phase 5's rules.yaml derives its template parameters from the values here
+# rather than guessing.
+
+scenario_name: credit_scoring
+scenario_version: "1.0.0"
+workflow_name: credit_application
+
+# T1 clean-split safety: refer IS the escalation outcome, so it must not
+# itself require prior approval — the ~8% of sessions where the human
+# declines produce deny_approval followed by make_decision(outcome=refer),
+# and listing refer here would make every one of them a false positive.
+approval_required_outcomes: [grant, deny]
+# T4: both deny and refer are adverse and carry reason codes.
+adverse_outcomes: [deny, refer]
+# T2 / V4: the three source types every decision must have retrieved.
+required_source_types: [credit_bureau, income_verification, internal_credit_history]
+
+agents:
+  - agent_id: AGT-INTAKE
+    name: Intake Agent
+    role: intake
+    version: "1.0.0"
+    framework: langgraph/1.2.11
+    entrypoint: true          # T3: the one role allowed to act without a handoff
+    prompt_name: intake_summary
+    prompt_version: "1"
+    prompt_template: |
+      You are the intake agent of a consumer credit workflow. Summarise the
+      application facts you are given in plain language for the case file.
+      Do not assess creditworthiness; that is the scoring agent's job.
+    tools: []
+  - agent_id: AGT-RETRIEVAL
+    name: Data Retrieval Agent
+    role: data_retrieval
+    version: "1.0.0"
+    framework: langgraph/1.2.11
+    entrypoint: false
+    prompt_name: retrieval_plan
+    prompt_version: "1"
+    prompt_template: |
+      You are the data retrieval agent. Call each mandated data source for the
+      application and record what was retrieved. Never skip a required source.
+    tools:
+      - credit_bureau_lookup
+      - income_verification
+      - internal_credit_history
+      - demographic_bias_monitor
+  - agent_id: AGT-SCORING
+    name: Scoring Agent
+    role: scoring
+    version: "1.0.0"
+    framework: langgraph/1.2.11
+    entrypoint: false
+    prompt_name: score_rationale
+    prompt_version: "1"
+    prompt_template: |
+      You are the scoring agent. Explain the scorecard outcome for the case
+      file using only the policy features. Demographic attributes are
+      monitored for bias, never scored.
+    tools:
+      - risk_scorecard
+  - agent_id: AGT-ADJUDICATION
+    name: Adjudication Agent
+    role: adjudication
+    version: "1.0.0"
+    framework: langgraph/1.2.11
+    entrypoint: false
+    prompt_name: adverse_action
+    prompt_version: "1"
+    prompt_template: |
+      You are the adjudication agent. Draft the decision notice for the
+      applicant. Adverse outcomes must cite the principal reason codes.
+    tools: []
+
+tools:
+  - tool_name: credit_bureau_lookup
+    tool_type: data_retrieval
+    description: Fetch the applicant's external credit bureau record.
+  - tool_name: income_verification
+    tool_type: data_retrieval
+    description: Verify declared income and employment against payroll data.
+  - tool_name: internal_credit_history
+    tool_type: data_retrieval
+    description: Fetch the applicant's account history held at this institution.
+  - tool_name: demographic_bias_monitor
+    tool_type: bias_monitoring
+    description: >
+      Retrieve the demographic projection of the applicant record for bias
+      detection and correction. Its output is never used for scoring.
+  - tool_name: risk_scorecard
+    tool_type: scoring
+    description: Compute the policy scorecard over the retrieved case file.
+
+# V4 needs >=3 required resources to delete a retrieval of. V5 needs a
+# special-category resource that HAS a lawful basis in the clean log, so the
+# injector can blank it.
+resources:
+  - resource_id: RES-CREDIT-BUREAU
+    resource_type: credit_bureau
+    classification: internal
+    lawful_basis: "GDPR Art. 6(1)(b) — processing necessary for pre-contractual steps"
+    controller: External Credit Bureau AG
+    retention_class: fsi_records_6y
+    retrieved_by: credit_bureau_lookup
+    purpose: creditworthiness_assessment
+    required: true
+  - resource_id: RES-INCOME
+    resource_type: income_verification
+    classification: internal
+    lawful_basis: "GDPR Art. 6(1)(b) — processing necessary for pre-contractual steps"
+    controller: The Bank
+    retention_class: fsi_records_6y
+    retrieved_by: income_verification
+    purpose: creditworthiness_assessment
+    required: true
+  - resource_id: RES-INTERNAL-HISTORY
+    resource_type: internal_credit_history
+    classification: internal
+    lawful_basis: "GDPR Art. 6(1)(b) — processing necessary for pre-contractual steps"
+    controller: The Bank
+    retention_class: fsi_records_6y
+    retrieved_by: internal_credit_history
+    purpose: creditworthiness_assessment
+    required: true
+  - resource_id: RES-DEMOGRAPHICS
+    resource_type: applicant_demographics
+    classification: special_category
+    # LEGAL FRAMING (verified 13 Aug 2026, see docs/PLAN-REVIEW.md A5):
+    # German Credit attributes 9/13/20 (personal status & sex, age, foreign
+    # worker) are protected grounds under non-discrimination law but NOT GDPR
+    # Art. 9 special categories — so AI Act Art. 10(5) (which lifts the Art. 9
+    # prohibition) is NOT the applicable basis. The bias-examination duty is
+    # grounded in Art. 10(2)(f)-(g) instead. `special_category` here is a
+    # deliberately CONSERVATIVE internal data-governance classification:
+    # foreign-worker status may indirectly reveal ethnic origin (CJEU C-184/20
+    # broad reading — under review by the regulatory co-author), and the
+    # Art. 10(5)(f)-style record-keeping is applied by analogy as a voluntary
+    # safeguard, not as the legal basis. V5 blanks the lawful_basis.
+    lawful_basis: >-
+      AI Act Art. 10(2)(f)-(g) — examination for possible biases and
+      appropriate detection/prevention/mitigation measures; record-keeping by
+      analogy to Art. 10(5)(f) applied as a voluntary safeguard (attributes
+      are protected grounds, not GDPR Art. 9 special categories).
+    controller: The Bank
+    retention_class: ai_act_art_10_2_bias_examination
+    retrieved_by: demographic_bias_monitor
+    purpose: bias_detection_and_correction
+    required: false
+
+# V8 needs a DECLARED superseded PolicyVersion object to repoint
+# make_decision's governed_by relation at. Exactly one policy is current
+# (empty effective_to).
+policies:
+  - policy_id: POL-CREDIT
+    version: "2025.11"
+    effective_from: "2025-11-01T00:00:00Z"
+    effective_to: "2026-01-31T23:59:59Z"
+    current: false
+  - policy_id: POL-CREDIT
+    version: "2026.02"
+    effective_from: "2026-02-01T00:00:00Z"
+    effective_to: ""
+    current: true
+
+# V3 needs a real role vocabulary with amount-based routing so an
+# unauthorised role can be swapped in. T1's allowed_roles derives from here.
+approvers:
+  - approver_id: APR-001
+    role: credit_officer
+    authority_level: 1
+    max_amount_dm: 5000
+  - approver_id: APR-002
+    role: senior_underwriter
+    authority_level: 2
+    max_amount_dm: 20000
+  - approver_id: APR-003
+    role: risk_manager
+    authority_level: 3
+    max_amount_dm: 100000000
+
+# The artefact model. The CLI's --provider scripted swaps in an honestly-named
+# scripted model (scripted-credit-policy-v1) — a scripted span must never
+# impersonate a vendor model id in a published audit dataset.
+model:
+  model_id: claude-haiku-4-5
+  provider: anthropic
+  version: "claude-haiku-4-5-20251001"
+  temperature: 0.0
+  seed: 42
+  max_tokens: 512

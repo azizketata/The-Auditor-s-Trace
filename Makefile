@@ -26,9 +26,11 @@ test:
 # $(error) rather than `echo && exit 1`: it is expanded only when the target
 # actually runs, and it involves no shell, so cmd.exe and sh behave identically.
 
-## scenario: generate spans from the agent fleet
+## scenario: generate spans from the agent fleet (scripted backend by default;
+## PROVIDER=anthropic requires ANTHROPIC_API_KEY)
+PROVIDER ?= scripted
 scenario:
-	$(error make scenario requires Phase 2 -- the credit-scoring agent fleet. See BUILD-PLAN.md section 9)
+	$(UV) python -m auditors_trace.scenario run --n 50 --seed 42 --provider $(PROVIDER)
 
 ## ingest: spans -> OCEL
 ingest:

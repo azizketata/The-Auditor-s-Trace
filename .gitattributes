@@ -1,0 +1,10 @@
+# Line endings are load-bearing here: span files are hashed byte-for-byte
+# (manifest sha256s, Phase 3 golden tests, the Phase 5/6 evidence chain), so
+# git must never translate them. Everything checks out as LF on every
+# platform; the toolchain (Python, ruff, make) is LF-safe on Windows.
+* text=auto eol=lf
+
+# Hashed artefacts: no text processing at all.
+*.jsonl -text
+*.data -text
+tests/golden/** -text

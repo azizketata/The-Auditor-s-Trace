@@ -41,10 +41,26 @@ deliberate — see hard rule 5 above and BUILD-PLAN.md section 0 rule 6.
 
 ## Current state
 
-Phase 0 complete: scaffold only. Every module under `src/auditors_trace/` is a
-stub whose functions raise `NotImplementedError`. Placeholder types (`OCELLog`,
-`Violation`, `EvidenceRecord`, ...) are declared but empty; Phase 1 replaces the
-model ones with BUILD-PLAN.md section 5's real definitions.
+Phases 0 and 2 complete (Phase 2 was pulled ahead of Phase 1 by explicit
+decision — it emits spans and never touches the OCEL model). Built:
+
+- `model/span_contract.py` — the `at.*` governance span vocabulary
+  (`at-span/1`), THE contract between the scenario (writer) and Phase 3's
+  mapper (reader). Change it only with a version bump.
+- `model/ocel_schema.py` — the three enums are real; the two functions stay
+  Phase 1 stubs.
+- `scenario/` — the four-agent LangGraph fleet. 28 events/session, all 13
+  event types, all 12 object types. `make scenario` runs it scripted.
+
+Still stubs: `model/log.py`, `model/io.py` (Phase 1), `ingest/` (Phase 3),
+`constraints/`, `evidence/`, `baselines/`, `eval/`, `scenario/injector.py`
+(Phase 4). `data/catalogue/scenario_credit.yaml` is the scenario catalogue —
+distinct from `violations.yaml`, which does not exist yet and gets frozen at
+Phase 4.
+
+Known spec deviations, both surfaced and approved: the Claude API has no
+sampling seed (recorded as provenance instead), and `temperature` is only
+accepted on Haiku 4.5 (hence the fleet model choice).
 
 ## Code navigation
 

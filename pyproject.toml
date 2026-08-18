@@ -29,6 +29,7 @@ scenario = [
     "openinference-instrumentation-langchain==0.1.70",
     "langgraph==1.2.11",
     "langchain==1.3.15",
+    "langchain-anthropic==1.5.5",
 ]
 # Tables and figures only. Never in the deterministic path.
 eval = [
@@ -74,13 +75,12 @@ strict = true
 python_version = "3.11"
 files = ["src"]
 
-# None of these ship py.typed; --strict rejects untyped imports without this.
+# Only pm4py and matplotlib lack a py.typed marker; langchain, langgraph,
+# opentelemetry, and openinference all ship one, so --strict checks our use
+# of them for real.
 [[tool.mypy.overrides]]
 module = [
     "pm4py.*",
-    "langchain.*",
-    "langgraph.*",
-    "openinference.*",
     "matplotlib.*",
 ]
 ignore_missing_imports = true
@@ -91,3 +91,6 @@ ignore_missing_imports = true
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-ra --strict-markers"
+markers = [
+    "network: requires internet access; excluded from the hermetic suite",
+]

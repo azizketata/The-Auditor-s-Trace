@@ -1,0 +1,131 @@
+# Crosswalk template — Alina's deliverable (BUILD-PLAN §11).
+#
+# HOW TO USE: copy this file to rules/crosswalk.yaml and replace every TODO.
+# The build harness supplies the loader and validator (Phase 6); the CONTENT —
+# legal bases and standard references — is authored here, by a human, never
+# generated. Article references marked "from §7" are transcribed from
+# BUILD-PLAN section 7 as a starting point: verify, correct paragraph-level
+# citations, and add the requirement text from the instrument itself.
+#
+# Every constraint the engine knows must appear here; Phase 6 hard-fails on an
+# unmapped constraint id (invariant I3), and every evidence record embeds the
+# entries below verbatim.
+
+crosswalk_version: "TODO e.g. 2026-08.1"
+author: "Alina Hafner"
+
+constraints:
+  - constraint_id: T1.synchronised_approval
+    natural_language: >-
+      TODO — refine: For every decision with an outcome that requires approval
+      (grant, deny), a human approver with an authorised role must have granted
+      approval for that same decision before the decision was made.
+    legal_basis:
+      # from §7 (V1/V2/V3): Art. 14, Art. 26(2)
+      - instrument: "Regulation (EU) 2024/1689"
+        article: "14"
+        paragraph: "TODO e.g. 4(d)"
+        requirement: "TODO quote/paraphrase the requirement imposed"
+      - instrument: "Regulation (EU) 2024/1689"
+        article: "26"
+        paragraph: "2"
+        requirement: "TODO"
+    standard_refs:
+      - standard: "ISO/IEC 42001"
+        control: "TODO"
+      - standard: "ISO/IEC 24970"
+        clause: "TODO"
+      - framework: "NIST AI RMF"
+        function: "TODO e.g. MEASURE"
+    severity: "TODO high|medium|low"
+
+  - constraint_id: T2.mandatory_data_coverage
+    natural_language: >-
+      TODO — refine: Every credit decision must rest on retrievals covering all
+      mandated data sources for the application.
+    legal_basis:
+      # from §7 (V4): Art. 10, Art. 15
+      - instrument: "Regulation (EU) 2024/1689"
+        article: "10"
+        paragraph: "TODO"
+        requirement: "TODO"
+      - instrument: "Regulation (EU) 2024/1689"
+        article: "15"
+        paragraph: "TODO"
+        requirement: "TODO"
+    standard_refs: []  # TODO
+    severity: "TODO"
+
+  - constraint_id: T3.delegation_integrity
+    natural_language: >-
+      TODO — refine: No agent may act within a session without a preceding
+      handoff to it (or being the session entrypoint), and delegation chains
+      must not cycle.
+    legal_basis:
+      # from §7 (V7): Art. 14, Art. 26
+      - instrument: "Regulation (EU) 2024/1689"
+        article: "14"
+        paragraph: "TODO"
+        requirement: "TODO"
+    standard_refs: []  # TODO
+    severity: "TODO"
+
+  - constraint_id: T4.reason_code_presence
+    natural_language: >-
+      TODO — refine: Every adverse decision (deny, refer) must carry non-empty
+      reason codes and at least one reasoning statement referencing it.
+    legal_basis:
+      # from §7 (V6): Art. 13, Art. 86
+      - instrument: "Regulation (EU) 2024/1689"
+        article: "13"
+        paragraph: "TODO"
+        requirement: "TODO"
+      - instrument: "Regulation (EU) 2024/1689"
+        article: "86"
+        paragraph: "TODO"
+        requirement: "TODO"
+    standard_refs: []  # TODO
+    severity: "TODO"
+
+  - constraint_id: T5.prohibited_attribute_access
+    natural_language: >-
+      TODO — refine: No retrieval or model call concerning an application may
+      touch a protected-attribute data resource unless that resource carries a
+      recorded basis documenting why the processing is necessary for bias
+      examination and mitigation.
+    legal_basis:
+      # CORRECTED 13 Aug 2026 (docs/PLAN-REVIEW.md A5): Art. 10(5) is REFUTED
+      # as the basis here — it lifts the GDPR Art. 9 prohibition, and sex/age
+      # are not Art. 9 categories. Anchor on Art. 10(2)(f)-(g) instead.
+      # OPEN QUESTION for Alina: is foreign-worker status data "indirectly
+      # revealing" ethnic origin under the CJEU's broad reading (C-184/20)?
+      # If yes, Art. 10(5) applies to THAT attribute alone — document both.
+      - instrument: "Regulation (EU) 2024/1689"
+        article: "10"
+        paragraph: "2(f)-(g)"
+        requirement: "TODO — examination for possible biases; appropriate measures"
+    standard_refs: []  # TODO — note: cite "ISO/IEC FDIS 24970" (FDIS stage as
+      # of Aug 2026, not yet a published IS; re-verify before 4 Sep)
+    severity: "TODO"
+
+  # Standard object-scoped template used for V8 (superseded policy):
+  - constraint_id: STD.policy_version_current
+    natural_language: >-
+      TODO — refine: Every decision must be governed by the policy version in
+      force at decision time, never a superseded one.
+    legal_basis:
+      # from §7 (V8): Art. 72
+      - instrument: "Regulation (EU) 2024/1689"
+        article: "72"
+        paragraph: "TODO"
+        requirement: "TODO"
+    standard_refs: []  # TODO
+    severity: "TODO"
+
+# Retention line every evidence record cites (BUILD-PLAN §8) — verify wording:
+retention:
+  class: ai_act_art_26_6
+  min_retention_months: 6
+  note: >-
+    TODO verify: financial institutions retain per applicable Union financial
+    services law (Art. 26(6) second sentence).
