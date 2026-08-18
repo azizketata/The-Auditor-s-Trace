@@ -88,12 +88,19 @@ is then frozen and git-tagged **before** any detection experiment runs
 This is the cheapest insurance against our biggest risk; §12 says it must not
 be skipped.
 
-## 6. E4 inspectability study — design by ~28 Aug
+## 6. Expert studies — protocol drafted, yours to own; pilot committed
 
-Claim C4's human half: can an auditor reproduce and defend a violation from
-its evidence record alone? You design the protocol (participants, task,
-measures — e.g. can they independently re-derive the violation, rate
-defensibility). Execution can slide past the abstract; the design should not.
+A full draft protocol now exists at `docs/EXPERT-STUDY-PROTOCOL.md` (two-touch
+design: realism review ~21 Aug + evidence walkthrough 1–8 Sep), with draft
+consent/information sheets under `docs/study/` (German administered version +
+English artifact version). **Aziz has committed the formative walkthrough
+pilot (n = 2–3) to the 1–8 Sep window** so the paper reports real practitioner
+results; the descope fallback triggers automatically only if nothing is
+scheduled by the 4 Sep abstract. Your part: review and take ownership of the
+protocol, finalise the consent form (placeholders marked), check the Apr 2026
+EDPB research guidelines, and moderate the sessions. Note the role
+separation: the held-out violation variants elicited in the review are
+authored by you + the practitioner, firewalled from Aziz.
 
 ## 7. Related work — by ~1 Sep
 

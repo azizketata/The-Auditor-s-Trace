@@ -19,13 +19,27 @@ its quantitative evaluation. Precedent for auditors evaluating process-mining
 output as audit evidence: Werner et al., *Embedding process mining into
 financial statement audits* (two-auditor evaluation); Jans et al. 2014.
 
-Two studies, one participant pool:
+Two studies, one participant pool, **two-touch design**: each expert is asked
+for two short sessions rather than one long one — a realism-review call
+(Study A, ~30 min, from ~21 Aug) and a walkthrough session (Study B,
+~45–60 min, 1–8 Sep, once Phase 6 renders evidence records). Experts who can
+only attend once are assigned to whichever study their availability matches;
+a combined 75-min session is the fallback for late joiners after Phase 6.
 
 - **Study A — Catalogue realism review** (content-validity review of the
   violation catalogue, before it is frozen). Feeds BUILD-PLAN Phase 4 and the
   E3 hardening (held-out fault elicitation).
 - **Study B — Evidence inspectability walkthrough** (task-based think-aloud
   over generated evidence records; the E4 study, formative pilot first).
+
+**Decision (13 Aug 2026, A. Ketata):** the formative Study B pilot is
+**committed** for the 1–8 Sep window and reported in the submission; the
+descope path in PLAN-REVIEW.md B3 remains as the documented fallback that
+triggers automatically if no session is scheduled by the 4 Sep abstract
+deadline. Rationale: practitioner evaluation is the one component no
+competing work has (PLAN-REVIEW.md A9) and the held-out fault elicitation is
+the load-bearing fix for the E3 circularity (B2) — expert access is treated
+as a first-class contribution of the paper, not a validation checkbox.
 
 ## 2. Participants and recruitment
 
@@ -141,6 +155,10 @@ descriptively with exact counts — no inferential statistics at this n.
   employer names; roles described generically ("senior internal auditor,
   German bank"); statements paraphrased or aggregated unless a verbatim quote
   is individually approved.
+- **Optional named acknowledgment:** independent of data anonymity, each
+  participant may *opt in* to being thanked by name in the paper's
+  acknowledgments (default: not named). Participants receive the accepted
+  paper ahead of publication.
 - GDPR consent and research-ethics consent are kept conceptually distinct in
   the form.
 
@@ -153,6 +171,34 @@ descriptively with exact counts — no inferential statistics at this n.
   avoidable; **firewalled** from the held-out fault authoring (PLAN-REVIEW B2).
 - Introductions from professional networks create no employer involvement;
   this is stated in the information sheet.
+
+### 7a. Firewall procedure (operational)
+
+Rationale: the detector author cannot also author the detector's exam —
+anything he authors, the detector passes by construction; and any expert
+fault he *reads* before the template freeze silently becomes training data.
+Because Study A sessions (~21 Aug) precede the Phase 5 template build, the
+firewall is on the **answers**, not merely the calendar:
+
+1. Aziz may facilitate the Study A ratings segment (V1–V8 are pre-registered
+   ground truth under review, not secret).
+2. For the closing elicitation ("which failure modes are missing / what have
+   you seen?"), **Aziz leaves the session**; Alina records the answers in a
+   store he does not access.
+3. Alina + practitioner(s) derive 4–8 concrete held-out fault specifications
+   (events to add / modify / delete), kept sealed.
+4. Aziz builds and freezes the templates from the article text and the
+   original catalogue only; freeze = commit + tag + push to public remote +
+   external timestamp (PLAN-REVIEW B9).
+5. Only after the freeze do the sealed specs reach Aziz, who implements the
+   injectors mechanically; Alina verifies the injected logs match her specs.
+6. Held-out recall is reported as the generalization result; this procedure
+   is described in the paper, with the freeze artifacts as proof of order.
+
+Session phrasing when a participant asks what the system checks (before the
+elicitation): *"We show everything afterwards — first we need your list
+uncontaminated by ours; the separation is what makes your input usable as
+evidence."*
 
 ## 8. Artifacts and timeline
 
