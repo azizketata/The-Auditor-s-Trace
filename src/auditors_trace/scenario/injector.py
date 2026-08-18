@@ -1,11 +1,16 @@
 """Violation injection and the pre-registered ground-truth catalogue.
 
-Phase 4 deliverable. Injection operates on the OCEL log, not on the spans, so it
-is exact and reproducible. Each injector is pure: ``(log, seed) -> (log, list)``.
+Phase 4 deliverable. Injection operates at SPAN level (a pure seeded function
+over the span JSONL files), after which the faulted spans are re-mapped
+through the Phase 3 mapper — so every downstream system consumes artifacts
+derived from the same faulted telemetry, and evidence records cite span ids
+that actually exhibit the fault. (Amended 13 Aug 2026, docs/PLAN-REVIEW.md
+B1: the original OCEL-level design made the LLM-judge baseline structurally
+blind to the injected faults.)
 
-Invariant I4: ``data/catalogue/violations.yaml`` is frozen and git-tagged before
-any detection experiment runs. Never edit it after the tag. If it is wrong, stop
-and report.
+Invariant I4: ``data/catalogue/violations.yaml`` is frozen, git-tagged,
+pushed, and externally timestamped before any detection experiment runs.
+Never edit it after the tag. If it is wrong, stop and report.
 """
 
 from __future__ import annotations

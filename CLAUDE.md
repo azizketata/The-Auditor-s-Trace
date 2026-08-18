@@ -21,6 +21,12 @@ object-centric process mining. Research artefact for ICPM 2027.
 ## Workflow
 
 - Work one phase at a time, in order. See BUILD-PLAN.md section 9.
+- BUILD-PLAN.md was amended 13 Aug 2026 after an evidence-based deep review;
+  the amendments are marked *[A#/B#]* inline and their rationale lives in
+  docs/PLAN-REVIEW.md. Phases 4-8 build to the AMENDED spec (span-level
+  injection, held-out fault set + firewall, modernised judge, CIs/McNemar,
+  cross-platform determinism). The expert studies follow
+  docs/EXPERT-STUDY-PROTOCOL.md.
 - Write the named acceptance test first, watch it fail, then implement.
 - Run `make check` after every phase and report the results.
 - If a phase cannot be done as specified, stop and explain. Do not substitute

@@ -1,8 +1,19 @@
 # The Auditor's Trace — Build Plan
 
-**Target venue:** ICPM 2027 (abstract 4 Sep 2026, full paper 11 Sep 2026)
+**Target venue:** ICPM 2027 (abstract 4 Sep 2026, full paper 11 Sep 2026 — verified official dates; conference 8–12 Feb 2027, Univ. of Calabria; ACM single-column format, max 13 pages incl. references)
 **Authors:** Aziz Ketata (technical), Alina Hafner (regulatory, evaluation design)
 **Document purpose:** a build specification written to be executed by an agentic coding harness (Claude Code or equivalent) with a human reviewing at each gate.
+
+> **Amended 13 Aug 2026** after an evidence-based deep review (facts verified
+> against primary sources; hostile methodology critique). The findings and
+> rationale live in `docs/PLAN-REVIEW.md`; the amendments are folded into the
+> sections below and marked *[A#/B# — amended]*. Key changes: span-level
+> violation injection (B1), de-circularised detection evaluation with an
+> expert-authored held-out fault set (B2), restructured determinism claim
+> (B4), modernised LLM-judge spec (B5), inferential statistics (B6),
+> per-flattening expressiveness matrix (B7), corrected legal anchors
+> (A5: Art. 10(2)(f)–(g), not 10(5)), externally timestamped pre-registration
+> (B9), and the expert-study protocol in `docs/EXPERT-STUDY-PROTOCOL.md`.
 
 ---
 
@@ -29,7 +40,7 @@ Each phase below is a self-contained unit of work with:
 
 ## 1. The brief
 
-Banks and insurers are putting LLM agents into credit scoring. From 2 December 2027 those systems are high-risk under Annex III point 5(b) of the EU AI Act. Article 12 requires logging sufficient to reconstruct decisions after the fact; Article 26(6) requires deployers to retain those logs for at least six months; Article 72 requires post-market monitoring fed by them.
+Banks and insurers are putting LLM agents into credit scoring. Those systems are classified high-risk under Annex III point 5(b) of the EU AI Act, and the high-risk obligations apply from 2 December 2027 (Regulation (EU) 2026/1744 amending 2024/1689 — fixed date, verified; note 5(b)'s sole carve-out is financial fraud detection, so the scenario must remain creditworthiness evaluation). Article 12(1)–(2) requires logging sufficient to reconstruct decisions after the fact (12(3)'s minimum log content is biometric-only — never cite it here); Article 26(6) requires deployers to retain those logs for at least six months; Article 72 requires post-market monitoring fed by them. *[A1–A4 — amended]*
 
 Nothing today produces that. Observability tooling produces dashboards. LLM-as-judge evaluation produces non-reproducible opinions.
 
@@ -46,7 +57,7 @@ instrumented agent fleet
         │  violation set
         ▼
    evidence renderer                         [BUILD]
-        │  signed, hash-chained evidence records
+        │  hash-chained, tamper-evident evidence records
         ▼
    retention store + evaluation harness      [BUILD]
 ```
@@ -72,7 +83,7 @@ These are tested continuously, not at the end.
 
 **I3 — Every violation traces to a legal requirement.** No constraint exists in the ruleset without an article reference. Enforced by schema validation on the ruleset file.
 
-**I4 — Ground truth is pre-registered.** The violation catalogue is frozen and committed before any detection experiment runs. Enforced by a git tag and a hash check in the evaluation harness.
+**I4 — Ground truth is pre-registered.** The violation catalogue, `rules.yaml`, the template parameters, the verbatim judge prompts, and the judge-to-ground-truth matching function are frozen in the *same* tagged commit before any detection experiment runs. The tag is pushed to the public remote and its hash externally timestamped (Zenodo/OSF/RFC 3161) — a local git tag alone proves nothing. *[B9 — amended]*
 
 **I5 — Every artefact is regenerable.** `make all` reproduces every number and figure in the paper from scratch.
 
@@ -243,12 +254,35 @@ Params: `prohibited_classifications`.
 | V2 | Approval exists but references a different decision | T1 | Art. 14 |
 | V3 | Approval granted by an unauthorised role | T1 | Art. 14, Art. 26(2) |
 | V4 | A mandatory data source is never retrieved | T2 | Art. 10, Art. 15 |
-| V5 | Special-category resource read without lawful basis | T5 | Art. 10(5) |
+| V5 | Protected-attribute resource read without documented bias-examination basis | T5 | Art. 10(2)(f)–(g) *[A5 — amended: 10(5) refuted as basis for non-Art.-9 attributes]* |
 | V6 | Deny decision with empty reason codes | T4 | Art. 13, Art. 86 |
 | V7 | Agent acts without a preceding handoff | T3 | Art. 14, Art. 26 |
 | V8 | Decision governed by a superseded PolicyVersion | T-standard | Art. 72 |
 
 Each catalogue entry records: fault id, injection function, expected violating event ids, expected constraint id, expected severity.
+
+**Amendments (13 Aug 2026, see docs/PLAN-REVIEW.md B1/B2/B11):**
+
+- **Injection happens at SPAN level**, not on the OCEL log: a pure seeded
+  function over the span JSONL files, re-mapped through the Phase 3 mapper —
+  so every system (engine, judge, flattened DECLARE, OC-DFG) consumes
+  artifacts derived from the same faulted telemetry, and evidence records
+  cite span ids that actually exhibit the fault. (The original OCEL-level
+  design made the judge structurally blind to the faults.)
+- **V1–V8 recall on the `single` split is verification, not a result.** The
+  reported generalization numbers come from: (i) a **held-out fault set**
+  (4–8 variants authored by Alina + the recruited practitioner from the
+  article text and the realism-review elicitation, sealed until the template
+  freeze — firewall procedure in docs/EXPERT-STUDY-PROTOCOL.md §7a);
+  (ii) surface-form perturbations of each injection (roles, orderings,
+  timestamps, session shapes); (iii) a near-miss compliant distractor suite
+  (approval at the authority boundary, refer without approval,
+  protected-attribute read WITH documented basis) probing false positives
+  beyond the trivially clean split.
+- **Mixed-split composition rules are explicit:** co-injectable fault pairs
+  are declared in a compatibility matrix (or injection is sequential with
+  ground truth recomputed per step); acceptance test
+  `test_composed_injections_have_consistent_ground_truth`.
 
 ---
 
@@ -291,8 +325,7 @@ Each catalogue entry records: fault id, injection function, expected violating e
     "input_log_sha256": "..."
   },
   "reproducibility": {
-    "rerun_command": "python -m auditors_trace.cli check --log <hash> --rules <version>",
-    "expected_record_sha256": "..."
+    "rerun_command": "python -m auditors_trace.cli check --log <hash> --rules <version>"
   },
   "integrity": {
     "chain_index": 0,
@@ -308,6 +341,13 @@ Each catalogue entry records: fault id, injection function, expected violating e
 ```
 
 **Hashing rule:** `record_sha256` is computed over the canonical JSON of every field except `integrity`. `violation_id` is computed over `constraint.id + sorted(evidence.ocel_event_ids) + input_log_sha256`. No wall-clock value enters any hash.
+
+*[B12 — amended: the original schema placed `expected_record_sha256` inside
+`reproducibility`, i.e. inside its own hashed payload — a fixed-point
+impossibility. The record's own hash lives only in `integrity` (excluded from
+hashing); `rerun_command` alone carries the reproducibility semantics.
+Records are hash-chained and tamper-evident; the word "signed" is not used
+unless Phase 6 implements an actual signature.]*
 
 ---
 
@@ -397,9 +437,30 @@ Object identity: derive stable object ids from span attributes, not from generat
 
 **Deliverables.** `scenario/injector.py`, `data/catalogue/violations.yaml`, a git tag `catalogue-v1`.
 
-**Implementation notes.** Injection operates on the OCEL log, not on the spans, so it is exact and reproducible. Each injector is a pure function `(log, rng_seed) -> (log, list[GroundTruthViolation])`. Generate three splits: `clean` (no injections, for false-positive measurement), `single` (one violation per session), `mixed` (zero to three per session).
+**Implementation notes.** *[B1 — amended]* Injection operates at **span
+level**: each injector is a pure function `(span_files, rng_seed) ->
+(span_files, list[GroundTruthViolation])`, equally exact and reproducible,
+after which the faulted spans are re-mapped through the Phase 3 mapper to
+produce labelled OCEL logs. This keeps every downstream system (engine,
+judge, baselines) consuming artifacts derived from the same faulted
+telemetry, and exercises the mapper under fault conditions (strengthening
+C2). Generate three splits: `clean` (no injections, for false-positive
+measurement), `single` (one violation per session), `mixed` (zero to three
+per session, composition rules per §7). Stratify injections so every
+violation class reaches ≥30 instances across `single`+`mixed` (≈300+
+sessions; cheap for deterministic systems — the judge may be evaluated on a
+stratified subsample with CIs). *[B6]*
 
-**Critical:** freeze and tag the catalogue before running any detection. Have Alina and, if possible, one FSI auditor review the catalogue for realism at this point. This is the cheapest available insurance against the project's biggest risk.
+**Critical:** freeze per invariant I4 (same tagged commit: catalogue,
+rules.yaml, template parameters, judge prompts, matching function; pushed +
+externally timestamped) before running any detection. The realism review runs
+as a **structured expert content-validity review** per
+docs/EXPERT-STUDY-PROTOCOL.md Study A — documented instrument, consent,
+recorded in `data/catalogue/REVIEW.md` — not an informal read-through. Its
+"what's missing?" elicitation feeds the held-out fault set (§7), under the
+§7a firewall: Aziz is absent for the elicitation and sealed from the fault
+specs until the template freeze. This is the cheapest available insurance
+against the project's biggest risk.
 
 **Acceptance tests.**
 - `test_each_catalogue_entry_has_article_reference`
@@ -480,9 +541,39 @@ The crosswalk file is Alina's deliverable in content; the harness builds the loa
 
 **Implementation notes.**
 
-*LLM-as-judge:* prompt an LLM with the raw trace and the natural-language rules, ask for violations in a fixed JSON schema. Run 3 models × 5 seeds. Cache every response to disk keyed by (model, seed, input hash) so the evaluation is replayable without API access. **Do not** clean up or normalise its output beyond schema parsing; parse failures count as errors and are reported.
+*LLM-as-judge:* *[B5 — amended; the original "3 models × 5 seeds, temperature
+0" is not implementable on Aug-2026 frontier APIs and reads as a strawman.]*
+Pin 3 current frontier models with exact version strings and access dates in
+provenance. Run **5 repeated samples per model per input** — the measured
+quantity is honestly the end-to-end run-to-run variability of the deployed
+service, which is the auditor-relevant quantity (no vendor seed exists;
+temperature is rejected by current frontier models — use provider defaults
+and record them). Use each provider's **native structured-output mode**;
+report schema-failure rates separately, not as the headline. Give the judge
+the natural-language rules *with article references* and evaluate BOTH input
+conditions separately: raw spans and the serialized OCEL log. Develop the
+prompt only on a dev split disjoint from evaluation sessions; freeze it
+verbatim in the I4 tagged commit. Add a **majority-vote-of-5** aggregated
+judge as the strong variant (nearly free given caching). Report per-session
+cost and latency for every system. Score judge claims against ground truth
+ONLY via the pre-registered matching function (constraint-class synonym map +
+event-id overlap threshold, session-level partial credit reported
+separately); judge-flagged violations matching no catalogue entry are blindly
+adjudicated against the article text by Alina + the practitioner before
+counting as false positives. Cache every response keyed by (model, sample
+index, input hash) so the evaluation replays without API access. Acknowledge
+agentic tool-using judges as a plausible stronger baseline left to future
+work.
 
-*Case-centric DECLARE:* flatten the OCEL log to XES on the `Application` object, run pm4py's declarative conformance. The point is to show which violations are invisible after flattening.
+*Case-centric DECLARE:* *[B7 — amended]* flatten the OCEL log to XES on
+**every viable case notion** (`Application`, `Session`, `CreditDecision`,
+`Agent`), run pm4py's declarative conformance on each, and report a
+per-flattening × per-violation-class detectability matrix with event
+duplication/loss counts (convergence/divergence statistics). The defensible
+E1 claim is: *no single case notion covers all governance constraint classes,
+and cross-object synchronisation (V2) is inexpressible without object
+identity in any of them* — scoped to single-case-notion XES with case-centric
+DECLARE; richer flat encodings conceded in threats to validity.
 
 *OC-DFG:* pm4py's object-centric DFG conformance, as the non-declarative object-centric baseline.
 
@@ -505,11 +596,41 @@ The crosswalk file is Alina's deliverable in content; the harness builds the loa
 
 **Implementation notes.** Metrics:
 
-- Detection: precision, recall, F1 overall and per violation class, on `single` and `mixed`; false-positive rate on `clean`
-- Determinism: `D = (number of runs producing the modal verdict set) / N` for each system, N = 20. Expect 1.0 for ours, below 1.0 for the judge
-- Evidence reproducibility: fraction of records with identical hashes across runs
-- Scalability: wall-clock runtime vs event count, log-log plot, sessions from 50 to 5000
-- Expressiveness: table of constraint classes expressible under OCEL vs flattened XES
+- Detection *[B2/B6 — amended]*: precision, recall, F1 overall and per
+  violation class on `single` and `mixed`; false-positive rate on `clean`
+  (clean split verified by independent manual audit of a session sample, not
+  by the engine); **held-out fault set recall reported separately as the
+  generalization result**; perturbation and distractor results per class.
+  Engine recall 1.0 on `single` is a verification requirement (a test), never
+  a reported finding. All rates with Wilson/Clopper-Pearson CIs; aggregate F1
+  with bootstrap-over-sessions CIs; paired system comparisons via McNemar's
+  test. Acceptance test: `test_metrics_report_confidence_intervals`.
+- Determinism *[B4 — amended]*, three layers: (1) by construction (no
+  stochastic operations, sorted iteration, no wall-clock in hashes — enforced
+  by tests, argued in the paper); (2) empirically corroborated by **bitwise
+  hash equality of the full evidence bundle across 20 runs AND across
+  platforms** (Windows + Linux CI matrix, pinned Python); (3) judge
+  variability reported per model as exact-match rate over 5 samples, distinct
+  verdict-set counts, per-item flip rates, with exact binomial CIs. Framing:
+  determinism is a *requirement whose cost is measured* (what detection
+  performance, if any, the deterministic approach gives up) — never a race
+  the rule engine wins by definition; note flat-DECLARE and OC-DFG are
+  equally deterministic, so the differentiator is determinism AND
+  expressiveness jointly. Preempt the batch-invariant-inference
+  counterargument: even a bit-deterministic hosted judge is not third-party
+  reproducible evidence, because reproduction depends on a mutable service;
+  the pipeline's rerun_command over pinned artifacts is.
+- Evidence reproducibility: fraction of records with identical hashes across
+  runs and across platforms
+- Scalability *[B14 — amended]*: wall-clock runtime vs event count, log-log
+  plot, sessions from 50 to 5000. Large logs are produced by deterministic
+  replication/perturbation of the base log with fresh object ids (the fleet
+  is not rerun at 5000); a test asserts replicated logs preserve per-session
+  event-type distributions, and the plot is labelled *engine-runtime
+  scaling* — no claim about scenario diversity at scale.
+- Expressiveness *[B7 — amended]*: the per-flattening × per-violation-class
+  detectability matrix from Phase 7 (an experiment summarised by a table, not
+  a table in place of an experiment).
 
 `make all` runs everything from raw seed data to final figures.
 
@@ -563,7 +684,15 @@ The crosswalk file is Alina's deliverable in content; the harness builds the loa
 - The natural-language constraint statements and their derivation from regulatory text, including a traceability matrix
 - Review of `data/catalogue/violations.yaml` for realism
 - Design and execution of the auditor inspectability study (E4)
-- Related-work positioning against SAP ABM, IBM, TRAC, DEMM
+- Related-work positioning *[A9 — amended, works identified]*: **Traccia**
+  (arXiv:2607.14309 — closest competitor, must be cited and differentiated),
+  SAP Agent Behavior Mining (Vu et al., BPM 2026, arXiv:2606.20669 + Signavio
+  product), IBM process observability (arXiv:2505.20127), DEMM (Solozobov,
+  arXiv:2605.04093 + DEMM-Bench arXiv:2606.20634). "TRAC" was unresolved —
+  Alina confirms the intended reference (likely Traccia).
+- Expert studies per `docs/EXPERT-STUDY-PROTOCOL.md` (Alina owns; formative
+  Study B pilot committed for 1–8 Sep, descope auto-triggers 4 Sep if
+  unscheduled)
 
 Alina's deliverables are data files and prose, not code. The harness should never generate the crosswalk content itself; it builds the loader and the validator and leaves the file for her.
 
