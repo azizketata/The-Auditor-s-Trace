@@ -30,10 +30,10 @@ Auswertung oder Berichterstattung.
    acht simulierte Verstoßszenarien anhand eines kurzen strukturierten
    Fragebogens (Plausibilität, Häufigkeit, Schwere) und nennen aus Ihrer
    Sicht fehlende Fehlerbilder.
-2. **Begutachtung von Evidenzaufzeichnungen** (ca. 45–60 Min.): Sie
-   versuchen, aus einer Evidenzaufzeichnung und einem Logauszug einen
-   Verstoß eigenständig nachzuvollziehen („lautes Denken"), und beurteilen,
-   ob die Aufzeichnung einer Prüfung standhielte.
+2. **Begutachtung einer Evidenzaufzeichnung** (ca. 30 Min.): Sie versuchen,
+   aus einer Evidenzaufzeichnung und einem Logauszug einen Verstoß
+   eigenständig nachzuvollziehen („lautes Denken"), und beurteilen, ob die
+   Aufzeichnung einer Prüfung standhielte.
 
 Es gibt keine richtigen oder falschen Antworten; bewertet wird unser
 Artefakt, nicht Sie. Es werden ausschließlich simulierte Daten verwendet.

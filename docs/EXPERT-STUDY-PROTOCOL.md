@@ -19,12 +19,13 @@ its quantitative evaluation. Precedent for auditors evaluating process-mining
 output as audit evidence: Werner et al., *Embedding process mining into
 financial statement audits* (two-auditor evaluation); Jans et al. 2014.
 
-Two studies, one participant pool, **two-touch design**: each expert is asked
-for two short sessions rather than one long one — a realism-review call
-(Study A, ~30 min, from ~21 Aug) and a walkthrough session (Study B,
-~45–60 min, 1–8 Sep, once Phase 6 renders evidence records). Experts who can
-only attend once are assigned to whichever study their availability matches;
-a combined 75-min session is the fallback for late joiners after Phase 6.
+Two studies, one participant pool, **two-touch design, 2 × 30 minutes per
+participant** (a deliberate recruiting decision: two equal, small asks): a
+realism-review call (Study A, ~30 min, from ~21 Aug) and a walkthrough
+session (Study B, ~30 min, 1–8 Sep, once Phase 6 renders evidence records).
+Experts who can only attend once are assigned to whichever study their
+availability matches; a combined ~60-min session is the fallback for late
+joiners after Phase 6.
 
 - **Study A — Catalogue realism review** (content-validity review of the
   violation catalogue, before it is frozen). Feeds BUILD-PLAN Phase 4 and the
@@ -98,13 +99,14 @@ date, duration, per-item ratings, decisions taken). The catalogue is amended
 **Goal.** Can a practitioner independently understand, re-derive, and defend a
 violation from its evidence record? (Claim C4's human half — formative.)
 
-**Format.** ~60 min, remote, screen-shared. **Task-based concurrent
+**Format.** ~30 min, remote, screen-shared. **Task-based concurrent
 think-aloud** (established for expert evaluation of AI evidence: think-aloud
 with domain experts on explainable decision support, PLOS ONE
 10.1371/journal.pone.0291443; concurrent vs retrospective meta-analysis, ACM
 10.1145/3665327).
 
-**Tasks (per participant, 2 violations drawn from different classes):**
+**Tasks (per participant, ONE violation; violation classes rotated across
+participants so the pool still covers several classes):**
 
 | Task | Measure |
 |---|---|

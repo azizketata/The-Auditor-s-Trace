@@ -29,7 +29,7 @@ networks) have no role in design, analysis, or reporting.
 1. **Catalogue realism review** (~30 min): you rate eight simulated
    violation scenarios on a short structured instrument (plausibility,
    frequency, severity) and name failure modes you consider missing.
-2. **Evidence-record walkthrough** (~45–60 min): you attempt to independently
+2. **Evidence-record walkthrough** (~30 min): you attempt to independently
    re-derive a violation from an evidence record and a log excerpt
    (think-aloud), and judge whether the record would survive challenge.
 
