@@ -175,3 +175,29 @@ class TestVerifyChain:
     def test_missing_integrity_detected(self) -> None:
         chained = chain(_records())
         assert not verify_chain([chained[0].model_copy(update={"integrity": None}), *chained[1:]])
+
+    def test_prefix_verifies_a_documented_limitation(self) -> None:
+        """Adversarial-review pin (19 Aug 2026): a bare hash chain is
+        tamper-evident for CONTENT, not COMPLETENESS — any strict prefix
+        verifies, inherently. The completeness anchor is byte-for-byte
+        reproduction via the record's rerun command (its pins cover every
+        input), never verify_chain alone. This test exists so the limitation
+        stays documented, not accidental."""
+        chained = chain(_records())
+        assert verify_chain(chained[:1])
+        assert verify_chain(chained[:2])
+
+
+class TestRecordsJsonl:
+    def test_generated_at_never_reaches_the_bundle(self) -> None:
+        """Adversarial-review regression: exclude_none alone serialised a
+        SET generated_at into the bundle, breaking the section 8 shape and
+        making bundle bytes stamp-dependent."""
+        from auditors_trace.evidence.chain import records_jsonl
+
+        chained = chain(_records())
+        stamped = [
+            record.model_copy(update={"generated_at": "2099-01-01T00:00:00Z"}) for record in chained
+        ]
+        assert records_jsonl(stamped) == records_jsonl(chained)
+        assert b"generated_at" not in records_jsonl(stamped)

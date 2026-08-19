@@ -631,6 +631,29 @@ spec gaps the section 8/9-P6 text left open):*
     `docs/study/evidence-example.md` — Study A's "rendered example evidence
     trace" and Study B's record-plus-log-excerpt; and a strict span-index
     reader (`ingest.mapper.read_span_index`) as the sidecar's way back.*
+11. *(Adversarial review, 19 Aug 2026.) The sidecar and crosswalk are now
+    PINNED inputs: `build_render_index` binds the sidecar to the log by
+    event- and session-identity (a stale or cross-split sidecar fails as a
+    verification mismatch), and every record's rerun command carries four
+    pins — `--log`, `--rules`, `--span-index-sha256` (content hash of the
+    sidecar's canonical JSON), `--crosswalk-sha256` (file bytes, the
+    `catalogue_digest` precedent). A same-identity sidecar with forged span
+    values is not detectable from the log (spans are extrinsic); the pin is
+    what catches it. `check` verifies the pins on the exact objects it
+    renders (the verify-then-re-read TOCTOU gap is closed).*
+12. *(Adversarial review.) Completeness scope stated honestly: a bare hash
+    chain is tamper-evident for content, not completeness — any strict
+    prefix verifies, inherently. The completeness anchor is byte-for-byte
+    reproduction under the four pins; pinned by test as a documented
+    limitation. `records_jsonl` never emits `generated_at` (a stamped record
+    cannot change bundle bytes or the §8 shape).*
+13. *(Adversarial review.) Cross-validation compares (instrument, article,
+    paragraph) citation triples — bare article numbers let a GDPR Art. 14
+    pass as an AI-Act Art. 14; the placeholder gate treats "tbd" as a
+    substring like "todo" ("TBD pending review" no longer loads);
+    `rerun_command`/`engine_version` are substance-validated; CLI output
+    failures land on exit 3 with parent-directory creation (ingest
+    precedent) and PID-unique temp names.*
 
 ---
 

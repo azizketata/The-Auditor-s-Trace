@@ -16,7 +16,7 @@ pytest.importorskip("opentelemetry")
 
 from auditors_trace.constraints.engine import evaluate
 from auditors_trace.constraints.ruleset import load_ruleset
-from auditors_trace.evidence.chain import canonical_json
+from auditors_trace.evidence.chain import canonical_json, sha256_bytes
 from auditors_trace.evidence.crosswalk import load_crosswalk
 from auditors_trace.evidence.renderer import build_render_index, render_all
 from auditors_trace.model.log import log_hash
@@ -56,6 +56,7 @@ def _pipeline_bytes(split_dir: Path) -> bytes:
         ruleset=ruleset,
         render_index=build_render_index(run.log, run.span_index),
         input_log_sha256=log_hash(run.log),
+        crosswalk_sha256=sha256_bytes(FIXTURE_CROSSWALK.read_bytes()),
     )
     return "".join(
         canonical_json(record.model_dump(mode="json", by_alias=True, exclude_none=True)) + "\n"
@@ -85,6 +86,7 @@ def test_render_is_deterministic_100x(split_dir: Path) -> None:
                 ruleset=ruleset,
                 render_index=render_index,
                 input_log_sha256=input_hash,
+                crosswalk_sha256=sha256_bytes(FIXTURE_CROSSWALK.read_bytes()),
             )
         )
         for _ in range(100)

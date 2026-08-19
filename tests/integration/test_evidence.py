@@ -24,7 +24,7 @@ pytest.importorskip("opentelemetry")
 
 from auditors_trace.constraints.engine import evaluate
 from auditors_trace.constraints.ruleset import RuleSet, load_ruleset
-from auditors_trace.evidence.chain import GENESIS_HASH, record_hash, verify_chain
+from auditors_trace.evidence.chain import GENESIS_HASH, record_hash, sha256_bytes, verify_chain
 from auditors_trace.evidence.crosswalk import Crosswalk, load_crosswalk
 from auditors_trace.evidence.record import EvidenceRecord
 from auditors_trace.evidence.renderer import build_render_index, render_all
@@ -227,6 +227,7 @@ def _render_split(
         ruleset=ruleset,
         render_index=build_render_index(run.log, run.span_index),
         input_log_sha256=log_hash(run.log),
+        crosswalk_sha256=sha256_bytes(FIXTURE_CROSSWALK.read_bytes()),
     )
     return records, run
 
@@ -379,6 +380,65 @@ def test_clean_split_renders_an_empty_valid_chain(
     records, _ = _render_split(evidence_splits / "clean", ruleset, crosswalk)
     assert records == []
     assert verify_chain(records)
+
+
+def test_hermetic_gt_is_a_bijection(
+    evidence_splits: Path, single_records: list[EvidenceRecord]
+) -> None:
+    """Adversarial-review regression: the GT test was unidirectional — a
+    spurious record matched nothing and was checked against nothing. The
+    exact join is a bijection: same count, identical key sets."""
+    from auditors_trace.scenario.injector import read_labels
+
+    labels = read_labels(evidence_splits / "single" / "labels.json")
+    truth_keys = {
+        (truth.constraint_id, frozenset(truth.ocel_event_ids)) for truth in labels.violations
+    }
+    record_keys = {
+        (record.constraint.id, frozenset(record.evidence.ocel_event_ids))
+        for record in single_records
+    }
+    assert len(single_records) == len(labels.violations)
+    assert record_keys == truth_keys
+
+
+def test_span_citation_pairing_matches_the_sidecar(
+    evidence_splits: Path, single_records: list[EvidenceRecord]
+) -> None:
+    """Adversarial-review regression: the subset check alone could not catch
+    an anchor event paired with a wrong-but-preregistered span. Amendment 7's
+    property is 1:1 pairing: each cited event's span id is that event's OWN
+    span in the sidecar, in citation order."""
+    run = _map_run(evidence_splits / "single")
+    own_span = {ref.event_id: ref.span_id for ref in run.span_index.events}
+    for record in single_records:
+        expected = tuple(own_span[event_id] for event_id in record.evidence.ocel_event_ids)
+        assert record.evidence.otel_span_ids == expected, record.violation_id
+
+
+def test_mixed_split_renders_chains_and_matches_ground_truth(
+    evidence_splits: Path, ruleset: RuleSet, crosswalk: Crosswalk
+) -> None:
+    """Adversarial-review regression: composed injections were never rendered
+    by any test. Schema, chain, bijection, and span pairing on mixed."""
+    import jsonschema
+
+    from auditors_trace.scenario.injector import read_labels
+
+    records, run = _render_split(evidence_splits / "mixed", ruleset, crosswalk)
+    labels = read_labels(evidence_splits / "mixed" / "labels.json")
+    assert records
+    assert verify_chain(records)
+    assert len(records) == len(labels.violations)
+    truth_keys = {
+        (truth.constraint_id, frozenset(truth.ocel_event_ids)) for truth in labels.violations
+    }
+    own_span = {ref.event_id: ref.span_id for ref in run.span_index.events}
+    for record in records:
+        jsonschema.validate(json.loads(_jsonl([record]).decode("utf-8")), RECORD_SCHEMA)
+        assert (record.constraint.id, frozenset(record.evidence.ocel_event_ids)) in truth_keys
+        expected = tuple(own_span[event_id] for event_id in record.evidence.ocel_event_ids)
+        assert record.evidence.otel_span_ids == expected
 
 
 # --- Full-scale verification against the committed corpus (local only) ------

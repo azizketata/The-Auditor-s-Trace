@@ -28,7 +28,7 @@ GOLDEN = Path(__file__).resolve().parent / "hermetic_single.evidence.jsonl"
 def main() -> None:
     from auditors_trace.constraints.engine import evaluate
     from auditors_trace.constraints.ruleset import load_ruleset
-    from auditors_trace.evidence.chain import records_jsonl
+    from auditors_trace.evidence.chain import records_jsonl, sha256_bytes
     from auditors_trace.evidence.crosswalk import load_crosswalk
     from auditors_trace.evidence.renderer import build_render_index, render_all
     from auditors_trace.ingest.mapper import map_span_trees
@@ -68,6 +68,9 @@ def main() -> None:
         ruleset=ruleset,
         render_index=build_render_index(run.log, run.span_index),
         input_log_sha256=log_hash(run.log),
+        crosswalk_sha256=sha256_bytes(
+            (REPO / "tests" / "fixtures" / "crosswalk_fixture.yaml").read_bytes()
+        ),
     )
     GOLDEN.write_bytes(records_jsonl(records))
     print(f"{len(records)} records -> {GOLDEN}")

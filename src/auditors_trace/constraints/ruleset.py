@@ -74,10 +74,12 @@ def substantive_text(value: str) -> str:
 
     Public seam for the sibling schemas (evidence records, crosswalk): hard
     rule 4 is about substance, and a TODO one copy-paste from a legal citation
-    must fail at load time, never at audit time.
+    must fail at load time, never at audit time. Both markers are SUBSTRING
+    checks — 'tbd' as exact-match only let 'TBD pending legal review' load
+    into evidence records (adversarial review, 19 Aug 2026).
     """
     lowered = value.strip().lower()
-    if not lowered or "todo" in lowered or lowered == "tbd":
+    if not lowered or "todo" in lowered or "tbd" in lowered:
         raise ValueError(f"placeholder text {value!r} is not a legal reference (hard rule 4)")
     return value
 

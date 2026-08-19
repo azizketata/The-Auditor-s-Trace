@@ -88,7 +88,18 @@ class TestInvariantI3:
             RuleSet.model_validate(_ruleset([_rule(legal_basis=vague)]))
 
     def test_requirement_text_must_be_substantive(self) -> None:
-        for placeholder in ("TODO fill in", "tbd", "  TODO  "):
+        """Adversarial-review regression (19 Aug 2026): 'tbd' was rejected
+        only as an exact match, so 'TBD pending legal review' loaded into
+        evidence records. Both markers are substring checks now."""
+        placeholders = (
+            "TODO fill in",
+            "tbd",
+            "  TODO  ",
+            "TBD pending legal review",
+            "Article TBD",
+            "tbd - fill later",
+        )
+        for placeholder in placeholders:
             basis = _legal_basis()
             basis[0]["requirement"] = placeholder
             with pytest.raises(ValidationError):

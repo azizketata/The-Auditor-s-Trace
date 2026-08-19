@@ -9,6 +9,7 @@ import pytest
 
 from auditors_trace.constraints.ruleset import RuleSet, Severity, load_ruleset
 from auditors_trace.constraints.templates import Violation
+from auditors_trace.evidence.chain import sha256_bytes
 from auditors_trace.evidence.crosswalk import Crosswalk, load_crosswalk
 from auditors_trace.evidence.pack import session_excerpt, study_pack_markdown
 from auditors_trace.evidence.record import EvidenceRecord
@@ -62,6 +63,7 @@ def example_record(mini_log: OCELLog) -> EvidenceRecord:
         ruleset=ruleset,
         render_index=build_render_index(mini_log, _synthetic_index(mini_log)),
         input_log_sha256=log_hash(mini_log),
+        crosswalk_sha256=sha256_bytes(FIXTURE_CROSSWALK.read_bytes()),
     )
 
 

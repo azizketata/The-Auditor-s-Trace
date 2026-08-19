@@ -36,6 +36,7 @@ that links OCEL events back to the telemetry they came from.
 
 from __future__ import annotations
 
+import hashlib
 import json
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
@@ -126,6 +127,16 @@ def span_index_json(index: SpanIndex) -> str:
         ],
     }
     return canonical_json(payload) + "\n"
+
+
+def span_index_hash(index: SpanIndex) -> str:
+    """Content hash of a span index: sha256 over its canonical JSON line.
+
+    The sidecar pin evidence records cite (Phase 6): content-addressed like
+    ``log_hash`` (spike constraint G4), never file bytes — a rewrite with
+    identical content keeps the pin.
+    """
+    return hashlib.sha256(span_index_json(index).encode("utf-8")).hexdigest()
 
 
 def _index_str(entry: dict[str, object], key: str, where: str) -> str:

@@ -132,8 +132,30 @@ class TestCrossValidation:
             for entry in crosswalk.constraints
         )
         trimmed = crosswalk.model_copy(update={"constraints": entries})
-        with pytest.raises(CrosswalkError, match="article"):
+        with pytest.raises(CrosswalkError, match="citation"):
             validate_against_ruleset(trimmed, ruleset)
+
+    def _mutated_first_basis(self, crosswalk: Crosswalk, **update: object) -> Crosswalk:
+        entries = []
+        for entry in crosswalk.constraints:
+            if entry.constraint_id == "T1.synchronised_approval":
+                basis = entry.legal_basis[0].model_copy(update=update)
+                entry = entry.model_copy(update={"legal_basis": (basis, *entry.legal_basis[1:])})
+            entries.append(entry)
+        return crosswalk.model_copy(update={"constraints": tuple(entries)})
+
+    def test_instrument_disagreement_raises(self, crosswalk: Crosswalk, ruleset: RuleSet) -> None:
+        """Adversarial-review regression (19 Aug 2026): bare article numbers
+        let a GDPR Art. 14 pass as an AI-Act Art. 14. Citations compare as
+        (instrument, article, paragraph) triples."""
+        flipped = self._mutated_first_basis(crosswalk, instrument="Regulation (EU) 2016/679")
+        with pytest.raises(CrosswalkError, match="citation"):
+            validate_against_ruleset(flipped, ruleset)
+
+    def test_paragraph_disagreement_raises(self, crosswalk: Crosswalk, ruleset: RuleSet) -> None:
+        shifted = self._mutated_first_basis(crosswalk, paragraph="999(z)")
+        with pytest.raises(CrosswalkError, match="citation"):
+            validate_against_ruleset(shifted, ruleset)
 
 
 class TestLookups:

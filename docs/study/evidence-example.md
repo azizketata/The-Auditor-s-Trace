@@ -11,11 +11,13 @@ telemetry spans the finding rests on, the legal basis it traces to, and a
 rerun command: executing
 
 ```
-python -m auditors_trace.cli check --log 0e9fd533578f8e49c15837ec95171cd007e884211ce062e983a4e07a86f878aa --rules 2026-08.1
+python -m auditors_trace.cli check --log 0e9fd533578f8e49c15837ec95171cd007e884211ce062e983a4e07a86f878aa --rules 2026-08.1 --span-index-sha256 6c17f313775e6ba138748993b4795c91063a0ff1504a9ccf24c43dce5075c3b6 --crosswalk-sha256 33db90c448d9d40d13824916cdeacf1d931bef72c00fcd5889655e46c0addc7e
 ```
 
 over the pinned artefacts re-derives this record byte-for-byte. Records are
-hash-chained and tamper-evident: any change to any field breaks verification.
+hash-chained and tamper-evident: any change to a record's content breaks
+chain verification, and bundle completeness is anchored by that byte-for-byte
+reproduction — a truncated or substituted bundle cannot reproduce.
 
 ## The evidence record
 
@@ -54,7 +56,7 @@ hash-chained and tamper-evident: any change to any field breaks verification.
   "integrity": {
     "chain_index": 0,
     "prev_record_sha256": "0000000000000000000000000000000000000000000000000000000000000000",
-    "record_sha256": "b3f5a2aa067d2dfb57cc994fe20b267e25ed1f76e136273da5fd9e3f37a0aae4"
+    "record_sha256": "6b3d15e2a4c611dd54388845250991718f82122ecd562cb73ed6541fa1030dc0"
   },
   "legal_basis": [
     {
@@ -76,7 +78,7 @@ hash-chained and tamper-evident: any change to any field breaks verification.
     "input_log_sha256": "0e9fd533578f8e49c15837ec95171cd007e884211ce062e983a4e07a86f878aa"
   },
   "reproducibility": {
-    "rerun_command": "python -m auditors_trace.cli check --log 0e9fd533578f8e49c15837ec95171cd007e884211ce062e983a4e07a86f878aa --rules 2026-08.1"
+    "rerun_command": "python -m auditors_trace.cli check --log 0e9fd533578f8e49c15837ec95171cd007e884211ce062e983a4e07a86f878aa --rules 2026-08.1 --span-index-sha256 6c17f313775e6ba138748993b4795c91063a0ff1504a9ccf24c43dce5075c3b6 --crosswalk-sha256 33db90c448d9d40d13824916cdeacf1d931bef72c00fcd5889655e46c0addc7e"
   },
   "retention": {
     "class": "ai_act_art_26_6",

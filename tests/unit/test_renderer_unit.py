@@ -14,7 +14,7 @@ import pytest
 
 from auditors_trace.constraints.ruleset import RuleSet, Severity, load_ruleset
 from auditors_trace.constraints.templates import Violation
-from auditors_trace.evidence.chain import verify_chain
+from auditors_trace.evidence.chain import sha256_bytes, verify_chain
 from auditors_trace.evidence.crosswalk import Crosswalk, load_crosswalk
 from auditors_trace.evidence.renderer import (
     CrossTraceEvidenceError,
@@ -31,6 +31,7 @@ from auditors_trace.model.log import OCELLog, log_hash
 
 REPO = Path(__file__).resolve().parent.parent.parent
 FIXTURE_CROSSWALK = REPO / "tests" / "fixtures" / "crosswalk_fixture.yaml"
+FIXTURE_CROSSWALK_SHA256 = sha256_bytes(FIXTURE_CROSSWALK.read_bytes())
 
 TRACE_A = "a" * 32
 TRACE_B = "b" * 32
@@ -110,6 +111,55 @@ class TestRenderIndex:
         assert set(render_index.event_span) == {event.event_id for event in mini_log.events}
 
 
+class TestSpanIndexBinding:
+    """Adversarial-review regression (19 Aug 2026): a stale or cross-split
+    sidecar rendered forged span citations with exit 0. The sidecar must
+    carry exactly this log's event and session identity."""
+
+    def test_foreign_event_set_rejected(self, mini_log: OCELLog) -> None:
+        from auditors_trace.evidence.renderer import SpanIndexMismatchError
+
+        index = _synthetic_span_index(mini_log)
+        truncated = SpanIndex(schema_version=1, sessions=index.sessions, events=index.events[:-1])
+        with pytest.raises(SpanIndexMismatchError, match="does not belong"):
+            build_render_index(mini_log, truncated)
+
+        renamed = SpanIndex(
+            schema_version=1,
+            sessions=index.sessions,
+            events=(
+                *index.events[:-1],
+                EventSpanRef(
+                    event_id="EVT-FOREIGN-001",
+                    trace_id=TRACE_A,
+                    span_id="0000000000000099",
+                    enrichment_span_ids=(),
+                ),
+            ),
+        )
+        with pytest.raises(SpanIndexMismatchError, match="does not belong"):
+            build_render_index(mini_log, renamed)
+
+    def test_foreign_session_set_rejected(self, mini_log: OCELLog) -> None:
+        from auditors_trace.evidence.renderer import SpanIndexMismatchError
+
+        index = _synthetic_span_index(mini_log)
+        wrong_sessions = SpanIndex(
+            schema_version=1,
+            sessions=(
+                SessionSpanRef(
+                    session_id="SESS-FOREIGN",
+                    trace_id=TRACE_A,
+                    root_span_id="f" * 16,
+                    session_span_ids=(),
+                ),
+            ),
+            events=index.events,
+        )
+        with pytest.raises(SpanIndexMismatchError, match="Session"):
+            build_render_index(mini_log, wrong_sessions)
+
+
 class TestRender:
     def test_record_assembly(
         self,
@@ -125,6 +175,7 @@ class TestRender:
             ruleset=ruleset,
             render_index=render_index,
             input_log_sha256=input_hash,
+            crosswalk_sha256=FIXTURE_CROSSWALK_SHA256,
         )
         assert record.constraint.id == "T1.synchronised_approval"
         assert record.constraint.ruleset_version == ruleset.ruleset_version
@@ -142,7 +193,14 @@ class TestRender:
         assert record.provenance.input_log_sha256 == input_hash
         assert record.reproducibility.rerun_command == (
             f"python -m auditors_trace.cli check --log {input_hash} "
-            f"--rules {ruleset.ruleset_version}"
+            f"--rules {ruleset.ruleset_version} "
+            f"--span-index-sha256 {render_index.span_index_sha256} "
+            f"--crosswalk-sha256 {FIXTURE_CROSSWALK_SHA256}"
+        )
+        from auditors_trace.evidence.chain import violation_id as violation_id_fn
+
+        assert record.violation_id == violation_id_fn(
+            record.constraint.id, record.evidence.ocel_event_ids, input_hash
         )
         assert record.integrity is None
         assert record.generated_at is None
@@ -160,6 +218,7 @@ class TestRender:
             ruleset=ruleset,
             render_index=render_index,
             input_log_sha256=log_hash(mini_log),
+            crosswalk_sha256=FIXTURE_CROSSWALK_SHA256,
         )
         assert record.context.policy_version == ""
         assert record.context.model_versions == {}
@@ -178,6 +237,7 @@ class TestRender:
                 ruleset=ruleset,
                 render_index=render_index,
                 input_log_sha256=log_hash(mini_log),
+                crosswalk_sha256=FIXTURE_CROSSWALK_SHA256,
             )
 
     def test_severity_disagreement_raises(
@@ -194,6 +254,7 @@ class TestRender:
                 ruleset=ruleset,
                 render_index=render_index,
                 input_log_sha256=log_hash(mini_log),
+                crosswalk_sha256=FIXTURE_CROSSWALK_SHA256,
             )
 
     def test_unmapped_event_raises(
@@ -210,6 +271,7 @@ class TestRender:
                 ruleset=ruleset,
                 render_index=render_index,
                 input_log_sha256=log_hash(mini_log),
+                crosswalk_sha256=FIXTURE_CROSSWALK_SHA256,
             )
 
     def test_cross_trace_citation_raises(
@@ -228,6 +290,7 @@ class TestRender:
                 ruleset=ruleset,
                 render_index=render_index,
                 input_log_sha256=log_hash(mini_log),
+                crosswalk_sha256=FIXTURE_CROSSWALK_SHA256,
             )
 
 
@@ -255,6 +318,7 @@ class TestRenderAll:
             ruleset=ruleset,
             render_index=render_index,
             input_log_sha256=log_hash(mini_log),
+            crosswalk_sha256=FIXTURE_CROSSWALK_SHA256,
         )
         assert [record.constraint.id for record in records] == [
             "T1.synchronised_approval",  # canonical order, not input order

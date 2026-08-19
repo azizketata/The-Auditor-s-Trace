@@ -53,6 +53,10 @@ class CrossTraceEvidenceError(RenderError):
     """Cited events span more than one trace; section 8's locator is singular."""
 
 
+class SpanIndexMismatchError(RenderError):
+    """The span-index sidecar does not belong to the log being rendered."""
+
+
 class UnknownRuleError(RenderError):
     """The violation's constraint id matches no rule in the ruleset."""
 
@@ -65,6 +69,9 @@ class RenderIndex:
     event_span: Mapping[str, tuple[str, str]]
     #: Session id -> the section 8 context block for that session.
     session_context: Mapping[str, Context]
+    #: Content hash of the sidecar (mapper.span_index_hash) — the pin every
+    #: record's rerun command carries, so reproduction covers the sidecar too.
+    span_index_sha256: str
 
 
 def build_render_index(log: OCELLog, span_index: SpanIndex) -> RenderIndex:
@@ -79,8 +86,33 @@ def build_render_index(log: OCELLog, span_index: SpanIndex) -> RenderIndex:
     ``performed_by``, ``from``, ``to``) — a ``declares`` materialisation
     relation never contributes context.
     """
+    from auditors_trace.ingest.mapper import span_index_hash
+
     index = build_index(log)
     event_span = {ref.event_id: (ref.trace_id, ref.span_id) for ref in span_index.events}
+
+    # Identity binding (adversarial review, 19 Aug 2026): a sidecar whose
+    # event/session identity differs from the log's cannot be this log's
+    # sidecar — a stale or cross-split sidecar must fail here, never feed
+    # wrong span citations into records. (A same-identity sidecar with forged
+    # span values is covered by the rerun pin, not detectable from the log.)
+    log_event_ids = {event.event_id for event in log.events}
+    if set(event_span) != log_event_ids:
+        missing = sorted(log_event_ids - set(event_span))[:3]
+        extra = sorted(set(event_span) - log_event_ids)[:3]
+        raise SpanIndexMismatchError(
+            f"span index does not belong to this log: {len(log_event_ids)} log events vs "
+            f"{len(event_span)} indexed (missing e.g. {missing}, extra e.g. {extra})"
+        )
+    log_session_ids = {
+        obj.object_id for obj in log.objects if obj.object_type is ObjectType.SESSION
+    }
+    index_session_ids = {session.session_id for session in span_index.sessions}
+    if index_session_ids != log_session_ids:
+        raise SpanIndexMismatchError(
+            f"span index sessions {sorted(index_session_ids)[:3]}... do not match the "
+            f"log's Session objects {sorted(log_session_ids)[:3]}..."
+        )
 
     session_ids = sorted(set(index.session_of_event.values()))
     session_context: dict[str, Context] = {}
@@ -115,7 +147,11 @@ def build_render_index(log: OCELLog, span_index: SpanIndex) -> RenderIndex:
             model_versions=dict(sorted(model_versions.items())),
             agent_versions=dict(sorted(agent_versions.items())),
         )
-    return RenderIndex(event_span=event_span, session_context=session_context)
+    return RenderIndex(
+        event_span=event_span,
+        session_context=session_context,
+        span_index_sha256=span_index_hash(span_index),
+    )
 
 
 def _rule_for(ruleset: RuleSet, violation: Violation) -> Rule:
@@ -134,9 +170,17 @@ def render(
     ruleset: RuleSet,
     render_index: RenderIndex,
     input_log_sha256: str,
+    crosswalk_sha256: str,
     engine_commit: str = "",
 ) -> EvidenceRecord:
-    """Render one violation as an unchained evidence record (section 8 exact)."""
+    """Render one violation as an unchained evidence record (section 8 exact).
+
+    ``crosswalk_sha256`` is the sha256 of the crosswalk file's bytes (the
+    ``catalogue_digest`` precedent): together with the sidecar hash carried
+    by the render index, the rerun command pins EVERY input the record's
+    bytes depend on — reproduction is what makes truncation and sidecar or
+    crosswalk substitution detectable.
+    """
     rule = _rule_for(ruleset, violation)
     if violation.severity is not rule.severity:
         raise RenderError(
@@ -188,7 +232,9 @@ def render(
         reproducibility=Reproducibility(
             rerun_command=(
                 f"python -m auditors_trace.cli check --log {input_log_sha256} "
-                f"--rules {ruleset.ruleset_version}"
+                f"--rules {ruleset.ruleset_version} "
+                f"--span-index-sha256 {render_index.span_index_sha256} "
+                f"--crosswalk-sha256 {crosswalk_sha256}"
             )
         ),
         retention=RETENTION,
@@ -202,6 +248,7 @@ def render_all(
     ruleset: RuleSet,
     render_index: RenderIndex,
     input_log_sha256: str,
+    crosswalk_sha256: str,
     engine_commit: str = "",
 ) -> list[EvidenceRecord]:
     """Render and chain a violation set into an ordered evidence log.
@@ -217,6 +264,7 @@ def render_all(
             ruleset=ruleset,
             render_index=render_index,
             input_log_sha256=input_log_sha256,
+            crosswalk_sha256=crosswalk_sha256,
             engine_commit=engine_commit,
         )
         for violation in violations

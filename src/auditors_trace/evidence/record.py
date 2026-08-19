@@ -178,6 +178,11 @@ class Provenance(_Frozen):
     engine_commit: str = ""
     input_log_sha256: str = Field(pattern=_SHA256_PATTERN)
 
+    @field_validator("engine_version")
+    @classmethod
+    def _substantive(cls, value: str) -> str:
+        return substantive_text(value)
+
 
 class Reproducibility(_Frozen):
     """The rerun command an auditor executes to reproduce this record byte-for-byte.
@@ -188,6 +193,11 @@ class Reproducibility(_Frozen):
     """
 
     rerun_command: str = Field(min_length=1)
+
+    @field_validator("rerun_command")
+    @classmethod
+    def _substantive(cls, value: str) -> str:
+        return substantive_text(value)
 
 
 class Integrity(_Frozen):

@@ -130,6 +130,17 @@ class TestSubstance:
         with pytest.raises(ValidationError):
             LegalBasis.model_validate(payload)
 
+    def test_rerun_command_and_engine_version_reject_placeholders(self) -> None:
+        """Adversarial-review regression: the module docstring promises every
+        free-text field is substance-validated, but these two carried only
+        min_length."""
+        with pytest.raises(ValidationError):
+            Reproducibility.model_validate({"rerun_command": "TODO: decide the rerun command"})
+        with pytest.raises(ValidationError):
+            Provenance.model_validate(
+                {"engine_version": "TBD later", "engine_commit": "", "input_log_sha256": "a" * 64}
+            )
+
     def test_legal_basis_required_non_empty(self) -> None:
         payload = record_dict()
         payload["legal_basis"] = []

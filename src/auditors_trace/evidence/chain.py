@@ -32,6 +32,11 @@ def sha256_hex(payload: str) -> str:
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
 
+def sha256_bytes(payload: bytes) -> str:
+    """Return the hex sha256 of a byte payload (file-content pins)."""
+    return hashlib.sha256(payload).hexdigest()
+
+
 def violation_id(constraint_id: str, ocel_event_ids: tuple[str, ...], input_log_sha256: str) -> str:
     """The record's content-addressed id: sha256 first 16 hex (section 8).
 
@@ -94,12 +99,18 @@ def records_jsonl(records: list[EvidenceRecord]) -> bytes:
     """The evidence bundle: one canonical-JSON line per record, in chain order.
 
     The single byte-level authority — the CLI, the goldens, and every
-    byte-identity test serialise through here. ``None`` fields (an unset
-    ``generated_at``) are omitted; a chained record's ``integrity`` is
-    present by construction.
+    byte-identity test serialise through here. ``generated_at`` is ALWAYS
+    excluded (display-only; a stamped record must not change bundle bytes or
+    violate the section 8 shape — adversarial review, 19 Aug 2026); a chained
+    record's ``integrity`` is present by construction.
     """
     return "".join(
-        canonical_json(record.model_dump(mode="json", by_alias=True, exclude_none=True)) + "\n"
+        canonical_json(
+            record.model_dump(
+                mode="json", by_alias=True, exclude_none=True, exclude={"generated_at"}
+            )
+        )
+        + "\n"
         for record in records
     ).encode("utf-8")
 
@@ -110,6 +121,14 @@ def verify_chain(records: list[EvidenceRecord]) -> bool:
     Recomputes each record's hash (a forged ``record_sha256`` or any changed
     hashed field fails), and checks contiguous 0-based indices plus the
     genesis link. An empty chain is vacuously valid. Never raises.
+
+    Scope, stated honestly: a bare hash chain is tamper-evident for CONTENT,
+    not for COMPLETENESS — any strict prefix of a valid chain also verifies,
+    as truncation resistance requires an anchor outside the bundle. Here that
+    anchor is reproduction: re-running a record's ``rerun_command`` over the
+    pinned inputs re-derives the FULL bundle byte-for-byte, so a censored
+    bundle diverges from the reproduced one (adversarial review, 19 Aug 2026;
+    pinned by test as a documented limitation, never an accident).
     """
     previous = GENESIS_HASH
     for position, record in enumerate(records):

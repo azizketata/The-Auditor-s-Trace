@@ -131,8 +131,11 @@ def validate_against_ruleset(crosswalk: Crosswalk, ruleset: RuleSet) -> None:
     """Cross-validate the two hand-authored sources; disagreement is an error.
 
     For every rule: a crosswalk entry exists, severities are equal, and the
-    legal-basis article SETS are equal. Requirement texts may legitimately
-    differ in wording (both are human-authored); the articles may not.
+    legal-basis CITATION sets — (instrument, article, paragraph) triples —
+    are equal. Requirement texts may legitimately differ in wording (both
+    are human-authored); the citations may not: bare article numbers alone
+    let a GDPR Art. 14 pass as an AI-Act Art. 14 (adversarial review,
+    19 Aug 2026).
     """
     for rule in ruleset.rules:
         entry = _entry(crosswalk, rule.constraint_id)
@@ -141,10 +144,15 @@ def validate_against_ruleset(crosswalk: Crosswalk, ruleset: RuleSet) -> None:
                 f"{rule.constraint_id}: crosswalk severity {entry.severity.value!r} "
                 f"disagrees with the ruleset's {rule.severity.value!r}"
             )
-        crosswalk_articles = {basis.article for basis in entry.legal_basis}
-        ruleset_articles = {reference.article for reference in rule.legal_basis}
-        if crosswalk_articles != ruleset_articles:
+        crosswalk_citations = {
+            (basis.instrument, basis.article, basis.paragraph) for basis in entry.legal_basis
+        }
+        ruleset_citations = {
+            (reference.instrument, reference.article, reference.paragraph)
+            for reference in rule.legal_basis
+        }
+        if crosswalk_citations != ruleset_citations:
             raise CrosswalkError(
-                f"{rule.constraint_id}: crosswalk article set {sorted(crosswalk_articles)} "
-                f"disagrees with the ruleset's {sorted(ruleset_articles)}"
+                f"{rule.constraint_id}: crosswalk citations {sorted(crosswalk_citations)} "
+                f"disagree with the ruleset's {sorted(ruleset_citations)}"
             )

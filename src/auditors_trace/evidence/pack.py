@@ -90,7 +90,9 @@ rerun command: executing
 ```
 
 over the pinned artefacts re-derives this record byte-for-byte. Records are
-hash-chained and tamper-evident: any change to any field breaks verification.
+hash-chained and tamper-evident: any change to a record's content breaks
+chain verification, and bundle completeness is anchored by that byte-for-byte
+reproduction — a truncated or substituted bundle cannot reproduce.
 
 ## The evidence record
 
