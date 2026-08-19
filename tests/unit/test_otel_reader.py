@@ -130,8 +130,89 @@ class TestReadSpans:
             read_spans(_rewrite(GRANT, tmp_path, mutate))
 
     def test_missing_file_raises(self, tmp_path: Path) -> None:
-        with pytest.raises(IngestError, match="no such"):
+        from auditors_trace.ingest.otel_reader import InputUnavailableError
+
+        with pytest.raises(InputUnavailableError, match="no such"):
             read_spans(tmp_path / "ghost.jsonl")
+
+    # --- review findings, 19 Aug 2026 ---------------------------------
+
+    def test_unicode_line_separator_in_attribute_survives(self, tmp_path: Path) -> None:
+        """U+2028 inside a JSON string is legal writer output (canonical JSON
+        uses ensure_ascii=False); str.splitlines would split mid-string."""
+
+        poisoned = "credit" + chr(0x2028) + "application"
+
+        def mutate(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+            rows[0]["attributes"]["at.session.workflow"] = poisoned
+            return rows
+
+        rows = [json.loads(line) for line in GRANT.read_text(encoding="utf-8").splitlines()]
+        mutated = mutate(rows)
+        out = tmp_path / "u2028.jsonl"
+        out.write_text(
+            "".join(
+                json.dumps(r, sort_keys=True, separators=(",", ":"), ensure_ascii=False) + "\n"
+                for r in mutated
+            ),
+            encoding="utf-8",
+            newline="\n",
+        )
+        spans = read_spans(out)
+        assert len(spans) == 42
+        assert spans[0].attributes["at.session.workflow"] == poisoned
+
+    @pytest.mark.parametrize("bad", [1.9, "7", -3, 0, True])
+    def test_non_integer_creation_index_raises(self, bad: Any, tmp_path: Path) -> None:
+        def mutate(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+            rows[3]["creation_index"] = bad
+            return rows
+
+        with pytest.raises(IngestError, match="creation_index"):
+            read_spans(_rewrite(GRANT, tmp_path, mutate))
+
+    def test_float_timestamp_raises_never_truncates(self, tmp_path: Path) -> None:
+        def mutate(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+            rows[3]["start_time_unix_nano"] = 1787063404059312900.0
+            return rows
+
+        with pytest.raises(IngestError, match="start_time_unix_nano"):
+            read_spans(_rewrite(GRANT, tmp_path, mutate))
+
+    @pytest.mark.parametrize(
+        "dropped",
+        [
+            {},
+            {"attributes": 0},
+            {"attributes": 0, "events": 0, "links": 0, "bogus": 0},
+            {"attributes": False, "events": 0.0, "links": 0},
+        ],
+        ids=["empty", "missing-keys", "extra-key", "type-laundered"],
+    )
+    def test_degenerate_dropped_shapes_raise(self, dropped: dict[str, Any], tmp_path: Path) -> None:
+        def mutate(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+            rows[5]["dropped"] = dropped
+            return rows
+
+        with pytest.raises(IngestError, match="dropped"):
+            read_spans(_rewrite(GRANT, tmp_path, mutate))
+
+    def test_null_trace_id_raises_never_becomes_the_string_none(self, tmp_path: Path) -> None:
+        def mutate(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+            for row in rows:
+                row["trace_id"] = None
+            return rows
+
+        with pytest.raises(IngestError, match="trace_id"):
+            read_spans(_rewrite(GRANT, tmp_path, mutate))
+
+    def test_status_without_code_raises(self, tmp_path: Path) -> None:
+        def mutate(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+            rows[2]["status"] = {}
+            return rows
+
+        with pytest.raises(IngestError, match="status"):
+            read_spans(_rewrite(GRANT, tmp_path, mutate))
 
 
 class TestBuildSpanTrees:
@@ -214,3 +295,67 @@ class TestManifest:
         shutil.copy(GRANT_MANIFEST, tmp_path / "manifest.json")
         with pytest.raises(IngestError, match="SESS-0000"):
             read_run(tmp_path / "manifest.json")
+
+    # --- review findings, 19 Aug 2026 ---------------------------------
+
+    def _edited_manifest(self, tmp_path: Path, **overrides: Any) -> Path:
+        doc = json.loads(GRANT_MANIFEST.read_text(encoding="utf-8"))
+        doc.update(overrides)
+        path = tmp_path / "manifest.json"
+        path.write_text(json.dumps(doc, sort_keys=True), encoding="utf-8")
+        return path
+
+    def test_string_genai_semconv_raises_never_coerces(self, tmp_path: Path) -> None:
+        # bool("false") is True — coercion would mis-record provenance.
+        with pytest.raises(IngestError, match="genai_semconv"):
+            read_manifest(self._edited_manifest(tmp_path, genai_semconv="false"))
+
+    def test_float_seed_raises(self, tmp_path: Path) -> None:
+        with pytest.raises(IngestError, match="seed"):
+            read_manifest(self._edited_manifest(tmp_path, seed=42.9))
+
+    def test_future_manifest_schema_version_raises(self, tmp_path: Path) -> None:
+        with pytest.raises(IngestError, match="schema_version"):
+            read_manifest(self._edited_manifest(tmp_path, schema_version=999))
+
+    def test_session_count_mismatch_raises(self, tmp_path: Path) -> None:
+        # The coverage report echoes session_count as provenance; an edited
+        # manifest must not survive to a report asserting 100 sessions.
+        shutil.copy(GRANT, tmp_path / "SESS-0000.jsonl")
+        self._edited_manifest(tmp_path, session_count=100)
+        with pytest.raises(IngestError, match="session_count"):
+            read_run(tmp_path / "manifest.json")
+
+    def test_case_colliding_filenames_raise_on_every_platform(self, tmp_path: Path) -> None:
+        doc = json.loads(GRANT_MANIFEST.read_text(encoding="utf-8"))
+        doc["files"] = [doc["files"][0], ["SESS-0000.JSONL", doc["files"][0][1]]]
+        path = tmp_path / "manifest.json"
+        path.write_text(json.dumps(doc, sort_keys=True), encoding="utf-8")
+        shutil.copy(GRANT, tmp_path / "SESS-0000.jsonl")
+        with pytest.raises(IngestError, match="case"):
+            read_run(path)
+
+    def test_cross_file_duplicate_span_raises(self, tmp_path: Path) -> None:
+        """A span duplicated via a second hash-valid file must not silently
+        corrupt the span-index sidecar."""
+        import hashlib as _hashlib
+
+        rows = [json.loads(line) for line in GRANT.read_text(encoding="utf-8").splitlines()]
+        dupe = dict(rows[5])  # a layer-B span
+        dupe["creation_index"] = 999
+        extra = tmp_path / "extra.jsonl"
+        extra.write_text(
+            json.dumps(dupe, sort_keys=True, separators=(",", ":")) + "\n",
+            encoding="utf-8",
+            newline="\n",
+        )
+        shutil.copy(GRANT, tmp_path / "SESS-0000.jsonl")
+        doc = json.loads(GRANT_MANIFEST.read_text(encoding="utf-8"))
+        doc["files"] = [
+            doc["files"][0],
+            ["extra.jsonl", _hashlib.sha256(extra.read_bytes()).hexdigest()],
+        ]
+        manifest = tmp_path / "manifest.json"
+        manifest.write_text(json.dumps(doc, sort_keys=True), encoding="utf-8")
+        with pytest.raises(IngestError, match="duplicate span_id"):
+            read_run(manifest)

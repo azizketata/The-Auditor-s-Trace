@@ -88,6 +88,58 @@ class TestCliExitCodes:
         assert code == 0
         assert out.read_bytes().startswith(b"<?xml")
 
+    def test_bad_out_suffix_is_a_usage_error(self, tmp_path: Path) -> None:
+        """A typo'd --out suffix must not masquerade as an OCEL model
+        rejection (review finding, 19 Aug 2026)."""
+        code = main(
+            [
+                "run",
+                "--spans",
+                str(GRANT),
+                "--out",
+                str(tmp_path / "run.txt"),
+                "--coverage",
+                str(tmp_path / "c.json"),
+                "--quiet",
+            ]
+        )
+        assert code == 2
+
+    def test_integrity_error_with_no_such_in_free_text_stays_exit_6(self, tmp_path: Path) -> None:
+        """Exit codes come from exception types, never message sniffing: an
+        alias-conflict message embedding the words 'no such' must still be an
+        integrity error (review finding, 19 Aug 2026)."""
+        rows = [
+            json.loads(line)
+            for line in (SPANS / "paired_vocabulary_genai.jsonl")
+            .read_text(encoding="utf-8")
+            .splitlines()
+        ]
+        for row in rows:
+            if "gen_ai.tool.description" in row["attributes"]:
+                # Both vocabularies present, disagreeing — an alias conflict
+                # whose free text embeds the sniffable words.
+                row["attributes"]["tool.description"] = "Fails if no such applicant exists."
+        bad = tmp_path / "poisoned.jsonl"
+        bad.write_text(
+            "".join(json.dumps(r, sort_keys=True, separators=(",", ":")) + "\n" for r in rows),
+            encoding="utf-8",
+            newline="\n",
+        )
+        code = main(
+            [
+                "run",
+                "--spans",
+                str(bad),
+                "--out",
+                str(tmp_path / "out.jsonocel"),
+                "--coverage",
+                str(tmp_path / "c.json"),
+                "--quiet",
+            ]
+        )
+        assert code == 6
+
     def test_written_ocel_reads_back(self, tmp_path: Path) -> None:
         from auditors_trace.model.io import read_ocel
 

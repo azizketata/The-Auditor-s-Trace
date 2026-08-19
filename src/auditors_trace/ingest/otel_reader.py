@@ -37,6 +37,16 @@ class IngestError(ValueError):
     """Span-file, manifest, or tree-level input is unusable. Raised, never repaired."""
 
 
+class InputUnavailableError(IngestError):
+    """The caller-named input does not exist at all.
+
+    A distinct type so the CLI can report "input unavailable" (exit 3)
+    without sniffing message text; everything else stays an integrity error
+    (exit 6). A file the MANIFEST names but that is missing is deliberately
+    an :class:`IngestError` — the run is present but not intact.
+    """
+
+
 #: The exact top-level keys of a schema-version-1 span line, as written by
 #: ``scenario/telemetry.span_to_dict`` plus the exporter's ``creation_index``.
 _ENVELOPE_KEYS: Final[frozenset[str]] = frozenset(
@@ -116,6 +126,47 @@ class ManifestView:
     files: tuple[tuple[str, str], ...]
 
 
+#: Exact key sets the writer emits inside the nested envelope objects.
+_DROPPED_KEYS: Final[frozenset[str]] = frozenset({"attributes", "events", "links"})
+_STATUS_KEYS: Final[frozenset[str]] = frozenset({"code", "description"})
+_SCOPE_KEYS: Final[frozenset[str]] = frozenset({"name", "version", "schema_url"})
+
+
+def _require_str(source: str, key: str, value: object, *, allow_empty: bool = True) -> str:
+    if not isinstance(value, str):
+        raise IngestError(
+            f"{source}: {key} must be a string, got {type(value).__name__}; "
+            "audit evidence is never coerced"
+        )
+    if not allow_empty and not value:
+        raise IngestError(f"{source}: {key} is empty")
+    return value
+
+
+def _require_int(source: str, key: str, value: object, *, minimum: int) -> int:
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise IngestError(
+            f"{source}: {key} must be an integer, got {type(value).__name__}; "
+            "silent numeric coercion would alter evidence"
+        )
+    if value < minimum:
+        raise IngestError(f"{source}: {key} is {value}, below the minimum {minimum}")
+    return value
+
+
+def _require_exact_object(
+    source: str, key: str, value: object, expected_keys: frozenset[str]
+) -> dict[str, object]:
+    if not isinstance(value, dict):
+        raise IngestError(f"{source}: {key} is not an object")
+    if set(value) != expected_keys:
+        raise IngestError(
+            f"{source}: {key} keys {sorted(value)} are not exactly {sorted(expected_keys)}; "
+            "this is not an at-span/1 schema-version-1 span file"
+        )
+    return value
+
+
 def _parse_row(row: object, source: str) -> Span:
     if not isinstance(row, dict):
         raise IngestError(f"{source}: span line is not a JSON object")
@@ -133,12 +184,13 @@ def _parse_row(row: object, source: str) -> Span:
         raise IngestError(
             f"{source}: schema_version {row['schema_version']!r} is not {_SPAN_FILE_SCHEMA_VERSION}"
         )
-    dropped = row["dropped"]
-    if not isinstance(dropped, dict) or any(dropped.get(k) != 0 for k in dropped):
-        raise IngestError(
-            f"{source}: non-zero dropped counters {dropped!r}; a truncated span "
-            "cannot serve as audit evidence"
-        )
+    dropped = _require_exact_object(source, "dropped", row["dropped"], _DROPPED_KEYS)
+    for counter, raw in dropped.items():
+        if isinstance(raw, bool) or not isinstance(raw, int) or raw != 0:
+            raise IngestError(
+                f"{source}: dropped.{counter} is {raw!r}, not the integer 0; a "
+                "truncated span cannot serve as audit evidence"
+            )
     if row["events"]:
         raise IngestError(
             f"{source}: span carries span-events; at-span/1 evidence has none and "
@@ -149,42 +201,41 @@ def _parse_row(row: object, source: str) -> Span:
     attributes = row["attributes"]
     if not isinstance(attributes, dict):
         raise IngestError(f"{source}: attributes is not an object")
-    status = row["status"]
-    scope = row["scope"]
-    if not isinstance(status, dict) or not isinstance(scope, dict):
-        raise IngestError(f"{source}: status/scope is not an object")
+    status = _require_exact_object(source, "status", row["status"], _STATUS_KEYS)
+    scope = _require_exact_object(source, "scope", row["scope"], _SCOPE_KEYS)
     parent = row["parent_span_id"]
+    if parent is not None and not isinstance(parent, str):
+        raise IngestError(
+            f"{source}: parent_span_id must be a string or null, got {type(parent).__name__}"
+        )
     return Span(
-        trace_id=str(row["trace_id"]),
-        span_id=str(row["span_id"]),
-        parent_span_id=None if parent is None else str(parent),
-        name=str(row["name"]),
-        kind=str(row["kind"]),
-        start_time_unix_nano=int(row["start_time_unix_nano"]),
-        end_time_unix_nano=int(row["end_time_unix_nano"]),
-        status_code=str(status.get("code", "")),
+        trace_id=_require_str(source, "trace_id", row["trace_id"], allow_empty=False),
+        span_id=_require_str(source, "span_id", row["span_id"], allow_empty=False),
+        parent_span_id=parent,
+        name=_require_str(source, "name", row["name"]),
+        kind=_require_str(source, "kind", row["kind"]),
+        start_time_unix_nano=_require_int(
+            source, "start_time_unix_nano", row["start_time_unix_nano"], minimum=0
+        ),
+        end_time_unix_nano=_require_int(
+            source, "end_time_unix_nano", row["end_time_unix_nano"], minimum=0
+        ),
+        status_code=_require_str(source, "status.code", status["code"]),
         attributes=MappingProxyType(dict(attributes)),
-        scope_name=str(scope.get("name", "")),
-        creation_index=int(row["creation_index"]),
+        scope_name=_require_str(source, "scope.name", scope["name"]),
+        creation_index=_require_int(source, "creation_index", row["creation_index"], minimum=1),
         source=source,
     )
 
 
-def read_spans(path: Path) -> tuple[Span, ...]:
-    """Read one JSONL span dump, sorted by ``(trace_id, creation_index)``."""
-    if not path.exists():
-        raise IngestError(f"no such span file: {path}")
-    spans: list[Span] = []
-    for lineno, line in enumerate(path.read_text(encoding="utf-8").splitlines(), start=1):
-        if not line.strip():
-            continue
-        source = f"{path.name}:{lineno}"
-        try:
-            row = json.loads(line)
-        except json.JSONDecodeError as exc:
-            raise IngestError(f"{source}: not valid JSON: {exc}") from exc
-        spans.append(_parse_row(row, source))
+def ensure_unique_spans(spans: tuple[Span, ...]) -> tuple[Span, ...]:
+    """Reject duplicate span ids or (trace, creation_index) pairs, run-wide.
 
+    Applied per file by :func:`read_spans` AND across the concatenation of
+    files by :func:`read_run` and the CLI's ``--spans`` path — a span that
+    appears twice via two hash-valid files would otherwise silently corrupt
+    the span-index evidence sidecar.
+    """
     seen_ids: set[str] = set()
     seen_index: set[tuple[str, int]] = set()
     for span in spans:
@@ -198,37 +249,92 @@ def read_spans(path: Path) -> tuple[Span, ...]:
                 f"in trace {span.trace_id}"
             )
         seen_index.add(index_key)
+    return spans
+
+
+def read_spans(path: Path) -> tuple[Span, ...]:
+    """Read one JSONL span dump, sorted by ``(trace_id, creation_index)``.
+
+    Lines are split on ``\\n`` only — the writer's sole terminator
+    (``newline="\\n"``). ``str.splitlines`` would also split on U+2028/
+    U+2029/U+0085, which legally occur raw inside JSON string values under
+    the house canonical JSON (``ensure_ascii=False``).
+    """
+    if not path.exists():
+        raise InputUnavailableError(f"no such span file: {path}")
+    spans: list[Span] = []
+    for lineno, line in enumerate(path.read_text(encoding="utf-8").split("\n"), start=1):
+        if not line.strip():
+            continue
+        source = f"{path.name}:{lineno}"
+        try:
+            row = json.loads(line)
+        except json.JSONDecodeError as exc:
+            raise IngestError(f"{source}: not valid JSON: {exc}") from exc
+        spans.append(_parse_row(row, source))
+    ensure_unique_spans(tuple(spans))
     return tuple(sorted(spans, key=lambda s: (s.trace_id, s.creation_index)))
 
 
+_MANIFEST_SCHEMA_VERSION: Final[int] = 1
+
+
+def _manifest_str(name: str, doc: dict[str, object], key: str) -> str:
+    value = doc[key]
+    if not isinstance(value, str):
+        raise IngestError(f"{name}: manifest field {key} must be a string, got {value!r}")
+    return value
+
+
+def _manifest_int(name: str, doc: dict[str, object], key: str) -> int:
+    value = doc[key]
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise IngestError(f"{name}: manifest field {key} must be an integer, got {value!r}")
+    return value
+
+
 def read_manifest(path: Path) -> ManifestView:
-    """Read and validate a run manifest."""
+    """Read and validate a run manifest. Strictly typed — never coerced."""
     if not path.exists():
-        raise IngestError(f"no such manifest: {path}")
+        raise InputUnavailableError(f"no such manifest: {path}")
     try:
         doc = json.loads(path.read_text(encoding="utf-8"))
     except json.JSONDecodeError as exc:
         raise IngestError(f"{path.name}: not valid JSON: {exc}") from exc
     if not isinstance(doc, dict):
         raise IngestError(f"{path.name}: manifest is not a JSON object")
+    name = path.name
     try:
+        genai_semconv = doc["genai_semconv"]
+        if not isinstance(genai_semconv, bool):
+            raise IngestError(
+                f"{name}: manifest field genai_semconv must be a boolean, got "
+                f"{genai_semconv!r} (bool('false') is True — coercion would "
+                "mis-record provenance)"
+            )
         view = ManifestView(
-            schema_version=int(doc["schema_version"]),
-            contract=str(doc["contract"]),
-            run_id=str(doc["run_id"]),
-            scenario_name=str(doc["scenario_name"]),
-            scenario_version=str(doc["scenario_version"]),
-            seed=int(doc["seed"]),
-            session_count=int(doc["session_count"]),
-            catalogue_sha256=str(doc["catalogue_sha256"]),
-            seed_data_sha256=str(doc["seed_data_sha256"]),
-            model_id=str(doc["model_id"]),
-            provider=str(doc["provider"]),
-            genai_semconv=bool(doc["genai_semconv"]),
-            files=tuple((str(name), str(digest)) for name, digest in doc["files"]),
+            schema_version=_manifest_int(name, doc, "schema_version"),
+            contract=_manifest_str(name, doc, "contract"),
+            run_id=_manifest_str(name, doc, "run_id"),
+            scenario_name=_manifest_str(name, doc, "scenario_name"),
+            scenario_version=_manifest_str(name, doc, "scenario_version"),
+            seed=_manifest_int(name, doc, "seed"),
+            session_count=_manifest_int(name, doc, "session_count"),
+            catalogue_sha256=_manifest_str(name, doc, "catalogue_sha256"),
+            seed_data_sha256=_manifest_str(name, doc, "seed_data_sha256"),
+            model_id=_manifest_str(name, doc, "model_id"),
+            provider=_manifest_str(name, doc, "provider"),
+            genai_semconv=genai_semconv,
+            files=tuple((str(entry[0]), str(entry[1])) for entry in doc["files"]),
         )
-    except (KeyError, TypeError, ValueError) as exc:
+    except (KeyError, TypeError, IndexError) as exc:
         raise IngestError(f"{path.name}: malformed manifest: {exc!r}") from exc
+    if view.schema_version != _MANIFEST_SCHEMA_VERSION:
+        raise IngestError(
+            f"{path.name}: manifest schema_version {view.schema_version} is not "
+            f"{_MANIFEST_SCHEMA_VERSION}; a future format must not be silently "
+            "interpreted under v1 semantics"
+        )
     if view.contract != SPAN_CONTRACT_VERSION:
         raise IngestError(
             f"{path.name}: contract {view.contract!r} is not {SPAN_CONTRACT_VERSION!r}; "
@@ -238,9 +344,26 @@ def read_manifest(path: Path) -> ManifestView:
 
 
 def read_run(manifest_path: Path) -> tuple[Span, ...]:
-    """Read every span file the manifest lists, hash-verified. Never listdir."""
+    """Read every span file the manifest lists, hash-verified. Never listdir.
+
+    Filenames differing only by case are rejected on every platform: a
+    case-insensitive filesystem (Windows) would read one file twice while a
+    case-sensitive one errors — the same bytes must behave identically
+    everywhere. The distinct-session count is cross-checked against the
+    manifest's ``session_count``, which the coverage report echoes as
+    provenance.
+    """
     manifest = read_manifest(manifest_path)
     base = manifest_path.parent
+    folded: dict[str, str] = {}
+    for filename, _ in manifest.files:
+        key = filename.casefold()
+        if key in folded:
+            raise IngestError(
+                f"manifest lists {folded[key]!r} and {filename!r}, which differ only "
+                "by case; case-insensitive filesystems would read one file twice"
+            )
+        folded[key] = filename
     all_spans: list[Span] = []
     for filename, expected_digest in manifest.files:
         file_path = base / filename
@@ -253,7 +376,15 @@ def read_run(manifest_path: Path) -> tuple[Span, ...]:
                 f"manifest {expected_digest}); the run is not intact"
             )
         all_spans.extend(read_spans(file_path))
-    return tuple(sorted(all_spans, key=lambda s: (s.trace_id, s.creation_index)))
+    spans = tuple(sorted(all_spans, key=lambda s: (s.trace_id, s.creation_index)))
+    ensure_unique_spans(spans)
+    traces = {span.trace_id for span in spans}
+    if len(traces) != manifest.session_count:
+        raise IngestError(
+            f"manifest declares session_count={manifest.session_count} but the span "
+            f"files contain {len(traces)} trace(s); the run is not intact"
+        )
+    return spans
 
 
 def build_span_trees(spans: tuple[Span, ...]) -> tuple[SpanTree, ...]:

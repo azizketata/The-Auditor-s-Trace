@@ -149,6 +149,57 @@ def test_unknown_attributes_are_recorded_not_dropped() -> None:
     assert mapped_fraction(report) < 1.0
 
 
+class TestReviewFindings:
+    """Regressions for the adversarial review, 19 Aug 2026."""
+
+    def test_null_value_raises_never_launders(self) -> None:
+        # str(None) would put the string 'None' into the coverage evidence.
+        with pytest.raises(IngestError, match="unrepresentable"):
+            normalise_attributes(
+                {"openinference.span.kind": "LLM", "gen_ai.usage.input_tokens": None}
+            )
+
+    def test_dict_value_raises_never_reprs(self) -> None:
+        with pytest.raises(IngestError, match="unrepresentable"):
+            normalise_attributes({"gen_ai.tool.name": {"name": "x"}})
+
+    def test_dict_invocation_blob_raises(self) -> None:
+        with pytest.raises(IngestError, match="invocation_parameters"):
+            normalise_attributes(
+                {"llm.invocation_parameters": {"temperature": 0.0, "max_tokens": 512}}
+            )
+
+    def test_non_object_invocation_blob_raises(self) -> None:
+        with pytest.raises(IngestError, match="JSON object"):
+            normalise_attributes({"llm.invocation_parameters": "[]"})
+
+    @pytest.mark.parametrize("bad", [100.0, "100", True])
+    def test_non_integer_token_counts_raise(self, bad: object) -> None:
+        with pytest.raises(IngestError, match="token count"):
+            normalise_attributes(
+                {"gen_ai.usage.input_tokens": bad, "gen_ai.usage.output_tokens": 50}
+            )
+
+    def test_float_tokens_cannot_disable_the_total_cross_check(self) -> None:
+        # The old isinstance(int) gate silently skipped the contradiction
+        # check for float counts; now the counts themselves are rejected.
+        with pytest.raises(IngestError, match="token count"):
+            normalise_attributes(
+                {
+                    "gen_ai.usage.input_tokens": 100.0,
+                    "gen_ai.usage.output_tokens": 50.0,
+                    "llm.token_count.total": 999,
+                }
+            )
+
+    def test_cross_type_alias_conflict_raises(self) -> None:
+        # 100 == 100.0 in Python, but two types are two spellings.
+        with pytest.raises(IngestError, match=r"tokens\.input"):
+            normalise_attributes(
+                {"llm.token_count.prompt": 100, "gen_ai.usage.input_tokens": 100.0}
+            )
+
+
 class TestCoverageReport:
     def _layer_a(self) -> list[tuple[EventType, frozenset[str]]]:
         from auditors_trace.model.span_contract import governance_census

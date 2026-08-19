@@ -127,12 +127,28 @@ def _is_recorded(key: str) -> bool:
     return key in _RECORDED_KEYS or any(key.startswith(p) for p in _RECORDED_PREFIXES)
 
 
-def _as_attr_value(raw: object) -> AttrValue:
+def _as_attr_value(source_key: str, raw: object) -> AttrValue:
+    """Admit only representable values. Raised, never str()-laundered:
+    ``None`` would become the string ``'None'`` and a dict a Python repr —
+    both would silently enter the C2 coverage evidence."""
     if isinstance(raw, (str, bool, int, float)):
         return raw
-    if isinstance(raw, (list, tuple)):
-        return tuple(str(item) for item in raw)
-    return str(raw)
+    if isinstance(raw, (list, tuple)) and all(isinstance(item, str) for item in raw):
+        return tuple(raw)
+    raise IngestError(
+        f"attribute {source_key!r} carries an unrepresentable value {raw!r} "
+        f"({type(raw).__name__}); only str/bool/int/float/sequence-of-str are evidence"
+    )
+
+
+def _require_token_int(canonical_key: str, sourced: list[tuple[str, AttrValue]]) -> None:
+    for source_key, value in sourced:
+        if isinstance(value, bool) or not isinstance(value, int):
+            raise IngestError(
+                f"token count {canonical_key!r} from {source_key!r} must be an "
+                f"integer, got {value!r}; token arithmetic over non-integers "
+                "would silently corrupt the coverage evidence"
+            )
 
 
 def _put(
@@ -153,7 +169,7 @@ def normalise_attributes(raw: Mapping[str, object]) -> NormalisedSpan:
     for canonical_key, aliases in CANONICAL_ALIASES.items():
         for alias in aliases:
             if alias in raw:
-                _put(candidates, canonical_key, alias, _as_attr_value(raw[alias]))
+                _put(candidates, canonical_key, alias, _as_attr_value(alias, raw[alias]))
                 consumed.add(alias)
 
     # Span kind: explicit key, or derived from the gen_ai operation name.
@@ -166,31 +182,42 @@ def normalise_attributes(raw: Mapping[str, object]) -> NormalisedSpan:
         if operation in _OPERATION_TO_KIND:
             _put(candidates, "span.kind", _OPERATION_KEY, _OPERATION_TO_KIND[operation])
 
-    # The invocation-parameters blob contributes its governance fields.
+    # The invocation-parameters blob contributes its governance fields. A
+    # blob that is not a JSON-object string is rejected — marking the key
+    # consumed while discarding its fields would break the partition
+    # semantics ("consumed = folded into a canonical key").
     if _INVOCATION_BLOB in raw:
         consumed.add(_INVOCATION_BLOB)
         blob_raw = raw[_INVOCATION_BLOB]
-        if isinstance(blob_raw, str):
-            try:
-                blob = json.loads(blob_raw)
-            except json.JSONDecodeError as exc:
-                raise IngestError(f"llm.invocation_parameters is not valid JSON: {exc}") from exc
-            if isinstance(blob, dict):
-                for field, canonical_key in _BLOB_FIELDS.items():
-                    if field in blob and blob[field] is not None:
-                        _put(
-                            candidates,
-                            canonical_key,
-                            f"{_INVOCATION_BLOB}[{field}]",
-                            _as_attr_value(blob[field]),
-                        )
+        if not isinstance(blob_raw, str):
+            raise IngestError(
+                f"llm.invocation_parameters must be a JSON string, got {type(blob_raw).__name__}"
+            )
+        try:
+            blob = json.loads(blob_raw)
+        except json.JSONDecodeError as exc:
+            raise IngestError(f"llm.invocation_parameters is not valid JSON: {exc}") from exc
+        if not isinstance(blob, dict):
+            raise IngestError(f"llm.invocation_parameters must encode a JSON object, got {blob!r}")
+        for field, canonical_key in _BLOB_FIELDS.items():
+            if field in blob and blob[field] is not None:
+                _put(
+                    candidates,
+                    canonical_key,
+                    f"{_INVOCATION_BLOB}[{field}]",
+                    _as_attr_value(f"{_INVOCATION_BLOB}[{field}]", blob[field]),
+                )
 
-    # Conflict detection: all sources of one canonical key must agree.
+    # Conflict detection: all sources of one canonical key must agree in
+    # value AND type — Python's cross-type equality (True == 1 == 1.0) would
+    # otherwise accept two different spellings of one fact.
     canonical: dict[str, AttrValue] = {}
     for canonical_key, sourced in candidates.items():
+        if canonical_key.startswith("tokens."):
+            _require_token_int(canonical_key, sourced)
         values = [value for _, value in sourced]
         first = values[0]
-        if any(value != first for value in values[1:]):
+        if any(type(value) is not type(first) or value != first for value in values[1:]):
             detail = ", ".join(f"{src}={val!r}" for src, val in sourced)
             raise IngestError(
                 f"conflicting values for canonical key {canonical_key!r}: {detail}; "
@@ -199,6 +226,7 @@ def normalise_attributes(raw: Mapping[str, object]) -> NormalisedSpan:
         canonical[canonical_key] = first
 
     # tokens.total: derive from input+output; an explicit total must match.
+    # The operands are guaranteed non-bool ints by _require_token_int above.
     tokens_input = canonical.get("tokens.input")
     tokens_output = canonical.get("tokens.output")
     if isinstance(tokens_input, int) and isinstance(tokens_output, int):
@@ -236,6 +264,15 @@ class CoverageReport:
     mapped fraction to exceed 0.9. This is the evidence for claim C2. The
     layer-A denominator is ``governance_census`` — fixed per event type, so
     the gate cannot be gamed by shrinking the denominator.
+
+    Read the two layers differently. The layer-A census fraction is 1.0 **by
+    construction** whenever a run maps at all: every census key is mandatory
+    for ``parse_event``/``validate_event``, so an under-instrumented layer-A
+    span aborts the run (raise-never-repair) instead of lowering the number.
+    The census term therefore documents *what full instrumentation means*;
+    the layer-B term against ``EXPECTED_BY_KIND`` is the actually *measured*
+    quantity — partial standard-vocabulary instrumentation degrades it
+    without aborting.
     """
 
     schema_version: int

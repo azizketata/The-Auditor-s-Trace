@@ -142,6 +142,20 @@ class _Declaration:
     source: str
 
 
+def _same_attributes(
+    a: tuple[tuple[str, AttrValue], ...], b: tuple[tuple[str, AttrValue], ...]
+) -> bool:
+    """Type-strict attribute equality: Python's cross-type numeric equality
+    (True == 1 == 1.0) would otherwise let a type-conflicting redeclaration
+    win silently by sort order."""
+    if len(a) != len(b):
+        return False
+    return all(
+        name_a == name_b and type(value_a) is type(value_b) and value_a == value_b
+        for (name_a, value_a), (name_b, value_b) in zip(a, b, strict=True)
+    )
+
+
 def _session_scope(tree: SpanTree) -> SessionScope:
     scope = parse_scope(tree.root.attributes)
     if scope is None:
@@ -172,6 +186,12 @@ def _events_of(tree: SpanTree, scope: SessionScope) -> list[tuple[Span, EventSpe
             raise IngestError(f"{span.source}: event span scope disagrees with its session root")
         events.append((span, spec))
 
+    if not events:
+        raise IngestError(
+            f"trace {tree.trace_id}: the session has no event spans at all; an "
+            "empty session cannot be evidence (and the dense-seq check would "
+            "pass vacuously)"
+        )
     seqs = sorted(spec.seq for _, spec in events)
     if seqs != list(range(1, len(seqs) + 1)):
         raise IngestError(
@@ -203,6 +223,7 @@ def map_span_trees(trees: tuple[SpanTree, ...]) -> MappedRun:
     o2o: set[O2ORef] = set()
     layer_a_coverage: list[tuple[EventType, frozenset[str]]] = []
     layer_b: list[NormalisedSpan] = []
+    referenced_by_trace: list[tuple[str, set[str]]] = []
     event_refs: list[EventSpanRef] = []
     session_refs: list[SessionSpanRef] = []
     seen_sessions: dict[str, str] = {}
@@ -234,9 +255,8 @@ def map_span_trees(trees: tuple[SpanTree, ...]) -> MappedRun:
                 )
                 if existing is None:
                     declarations[ref.object_id] = incoming
-                elif (
-                    existing.object_type is not incoming.object_type
-                    or existing.attributes != incoming.attributes
+                elif existing.object_type is not incoming.object_type or not _same_attributes(
+                    existing.attributes, incoming.attributes
                 ):
                     raise IngestError(
                         f"{span.source}: conflicting redeclaration of object "
@@ -273,14 +293,13 @@ def map_span_trees(trees: tuple[SpanTree, ...]) -> MappedRun:
             present = frozenset(key for key in span.attributes if isinstance(key, str))
             layer_a_coverage.append((spec.event_type, present))
 
-        # Referenced-but-never-declared ids (per trace, after both passes).
-        referenced = {ref.object_id for _, spec in tree_events for ref in spec.objects}
-        undeclared = sorted(referenced - set(declarations))
-        if undeclared:
-            raise IngestError(
-                f"trace {tree.trace_id}: object id(s) {undeclared} are referenced "
-                "but never declared in the run"
-            )
+        # Record references; the never-declared check runs GLOBALLY after all
+        # traces — a per-trace check against the accumulating declarations
+        # dict would make acceptance depend on lexicographic trace-id order
+        # (review finding, 19 Aug 2026).
+        referenced_by_trace.append(
+            (tree.trace_id, {ref.object_id for _, spec in tree_events for ref in spec.objects})
+        )
 
         # Enrichment attribution + span index.
         parents = {s.span_id: s for s in tree.spans}
@@ -313,6 +332,14 @@ def map_span_trees(trees: tuple[SpanTree, ...]) -> MappedRun:
                     span_id=span.span_id,
                     enrichment_span_ids=tuple(sorted(enrichment.get(span.span_id, ()))),
                 )
+            )
+
+    for trace_id, referenced in referenced_by_trace:
+        undeclared = sorted(referenced - set(declarations))
+        if undeclared:
+            raise IngestError(
+                f"trace {trace_id}: object id(s) {undeclared} are referenced but "
+                "never declared in the run"
             )
 
     objects = tuple(

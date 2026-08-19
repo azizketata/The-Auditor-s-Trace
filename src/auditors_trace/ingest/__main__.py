@@ -64,19 +64,39 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
+def _atomic_write_text(path: Path, payload: str) -> None:
+    import os
+
+    tmp = path.with_name(path.name + ".tmp")
+    tmp.write_text(payload, encoding="utf-8", newline="\n")
+    os.replace(tmp, path)
+
+
 def _cmd_run(args: argparse.Namespace) -> int:
+    import os
+
     from auditors_trace.ingest.attribute_map import coverage_json, mapped_fraction
     from auditors_trace.ingest.mapper import map_span_trees, span_index_json
     from auditors_trace.ingest.otel_reader import (
         ManifestView,
         Span,
         build_span_trees,
+        ensure_unique_spans,
         read_manifest,
         read_run,
         read_spans,
     )
     from auditors_trace.model.io import detect_serialisation, write_ocel
-    from auditors_trace.model.log import log_hash
+    from auditors_trace.model.log import OCELModelError, log_hash
+
+    # A typo'd --out suffix is a usage error (exit 2), not an OCEL model
+    # rejection — validate before any work happens.
+    out: Path = args.out
+    try:
+        serialisation = detect_serialisation(out)
+    except OCELModelError as exc:
+        print(f"usage error: {exc}", file=sys.stderr)
+        return 2
 
     manifest: ManifestView | None = None
     if args.spans is not None:
@@ -84,24 +104,30 @@ def _cmd_run(args: argparse.Namespace) -> int:
         for path in args.spans:
             collected.extend(read_spans(path))
         spans = tuple(sorted(collected, key=lambda s: (s.trace_id, s.creation_index)))
+        # Cross-file duplicates would silently corrupt the span index.
+        ensure_unique_spans(spans)
     else:
         manifest = read_manifest(args.manifest)
         spans = read_run(args.manifest)
 
     run = map_span_trees(build_span_trees(spans))
 
-    out: Path = args.out
-    serialisation = detect_serialisation(out)
-    out.parent.mkdir(parents=True, exist_ok=True)
-    write_ocel(run.log, out, serialisation)
-
     coverage_path: Path = args.coverage
-    coverage_path.parent.mkdir(parents=True, exist_ok=True)
-    coverage_path.write_text(coverage_json(run.coverage, manifest), encoding="utf-8", newline="\n")
-
     index_path: Path = args.span_index or out.with_name(out.name + ".span_index.json")
+
+    # All artefacts land via temp-file-then-rename, and the OCEL log is
+    # written to its temp name before any rename happens — a failure part-way
+    # never leaves a fresh log paired with stale sidecars.
+    out.parent.mkdir(parents=True, exist_ok=True)
+    coverage_path.parent.mkdir(parents=True, exist_ok=True)
     index_path.parent.mkdir(parents=True, exist_ok=True)
-    index_path.write_text(span_index_json(run.span_index), encoding="utf-8", newline="\n")
+    # The temp name keeps the real suffix: pm4py's writers append their
+    # expected extension to unrecognised paths.
+    ocel_tmp = out.with_name(f"{out.stem}.tmp{out.suffix}")
+    write_ocel(run.log, ocel_tmp, serialisation)
+    _atomic_write_text(coverage_path, coverage_json(run.coverage, manifest))
+    _atomic_write_text(index_path, span_index_json(run.span_index))
+    os.replace(ocel_tmp, out)
 
     if not args.quiet:
         print(
@@ -115,7 +141,7 @@ def _cmd_run(args: argparse.Namespace) -> int:
 
 def main(argv: list[str] | None = None) -> int:
     """CLI entry. Returns an exit code instead of raising SystemExit."""
-    from auditors_trace.ingest.otel_reader import IngestError
+    from auditors_trace.ingest.otel_reader import IngestError, InputUnavailableError
     from auditors_trace.model.log import OCELModelError
     from auditors_trace.model.span_contract import SpanContractError
 
@@ -134,12 +160,14 @@ def main(argv: list[str] | None = None) -> int:
     except SpanContractError as exc:
         print(f"span contract violation: {exc}", file=sys.stderr)
         return 4
+    except InputUnavailableError as exc:
+        # A distinct exception type — never message sniffing: integrity-error
+        # messages embed free text (attribute values) that could contain any
+        # substring.
+        print(f"error: {exc}", file=sys.stderr)
+        return 3
     except IngestError as exc:
-        message = str(exc)
-        if "no such" in message:
-            print(f"error: {message}", file=sys.stderr)
-            return 3
-        print(f"ingest integrity error: {message}", file=sys.stderr)
+        print(f"ingest integrity error: {exc}", file=sys.stderr)
         return 6
     except OCELModelError as exc:
         print(f"ocel model rejection: {exc}", file=sys.stderr)
