@@ -58,7 +58,9 @@ def _attribute_violates(params: ObjectAbsenceParams, value: object) -> bool:
         if isinstance(value, tuple):
             return bool(value)
         return value is not None
-    return str(value) == params.value  # "equals"
+    # "equals": the params model guarantees value is set; the guard keeps a
+    # bypassed model (model_construct) from comparing against None.
+    return params.value is not None and str(value) == params.value
 
 
 def object_existence(log: OCELLog, rule: Rule) -> list[Violation]:

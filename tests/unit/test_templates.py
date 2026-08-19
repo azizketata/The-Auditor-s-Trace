@@ -9,6 +9,8 @@ exact-match, so anchor drift here means recall loss there.
 
 from __future__ import annotations
 
+import dataclasses
+
 import pytest
 
 from auditors_trace.constraints.ruleset import LegalReference, Rule, Severity
@@ -401,9 +403,33 @@ class TestT1:
         """An approval in the same whole second as the decision is not prior."""
         log = _session_log(approval="tie")
         violation = _only(t1_synchronised_approval(log, _t1_rule()))
-        # (timestamp, event_id) order: at an equal second the id decides.
+        # Citation pair in (timestamp, event_id) order (equal second: id sorts).
         assert violation.ocel_event_ids == ("EV-DEC", "EV-GRANT")
         assert violation.ocel_object_ids == ("DEC-1",)
+        assert "prior" in violation.detail
+
+    def test_t1_tie_verdict_is_independent_of_event_id_spelling(self) -> None:
+        """Adversarial-review regression: `strictly_before` once compared
+        (timestamp, event_id) tuples, so an equal-second approval counted as
+        prior whenever its id sorted first — and corpus-format ids
+        (EVT-SESS-NNNN-015-grant_approval < ...-020-make_decision) ALWAYS
+        sort the approval first, silently passing same-second approvals.
+        The tie verdict must not depend on id spelling."""
+        renames = {
+            "EV-GRANT": "EVT-SESS-0001-015-grant_approval",
+            "EV-DEC": "EVT-SESS-0001-020-make_decision",
+        }
+        base = _session_log(approval="tie")
+        events = tuple(
+            dataclasses.replace(event, event_id=renames.get(event.event_id, event.event_id))
+            for event in base.events
+        )
+        log = OCELLog(events=events, objects=base.objects, o2o=base.o2o)
+        violation = _only(t1_synchronised_approval(log, _t1_rule()))
+        assert violation.ocel_event_ids == (
+            "EVT-SESS-0001-015-grant_approval",
+            "EVT-SESS-0001-020-make_decision",
+        )
         assert "prior" in violation.detail
 
 

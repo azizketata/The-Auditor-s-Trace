@@ -13,8 +13,11 @@ House rules the implementations share:
   ``approves``, ...), never "any relation to type X" — this is what keeps the
   pm4py-materialisation ``declares`` relations out of every predicate.
 - Timestamps are canonical whole-second UTC strings, so lexicographic
-  comparison IS chronological; "strictly before" means
-  ``(timestamp, event_id) <``, and an equal-second tie is not before.
+  comparison IS chronological; "strictly before" means ``timestamp <``
+  alone (BUILD-PLAN section 6: ``e'.timestamp < e.timestamp``), and an
+  equal-second tie is not before — independent of event-id spelling.
+  Event ids participate only in tie-breaking DISPLAY order (citations,
+  canonical sort), never in the temporal predicate itself.
 - Event ids are opaque: their numeric infixes are pre-injection sequence
   numbers and must never be parsed for ordering.
 - Each violation cites exactly the evidence anchor the violation catalogue
@@ -150,8 +153,15 @@ def related_ids(
 
 
 def strictly_before(first: OCELEvent, second: OCELEvent) -> bool:
-    """Chronological order with the equal-second tie counting as NOT before."""
-    return (first.timestamp, first.event_id) < (second.timestamp, second.event_id)
+    """Chronological order with the equal-second tie counting as NOT before.
+
+    Timestamps only — never the event ids. A (timestamp, event_id) tuple
+    comparison here would let id spelling decide equal-second ties, and
+    corpus-format ids always sort the earlier-sequenced event first, which
+    would silently count a same-second approval as prior (adversarial
+    review, 19 Aug 2026).
+    """
+    return first.timestamp < second.timestamp
 
 
 def event_attrs(event: OCELEvent) -> dict[str, object]:

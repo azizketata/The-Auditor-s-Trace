@@ -147,10 +147,20 @@ rules:
       attribute: effective_to
       violating_when: non_empty
     legal_basis:
+      # Paragraph split corrected 19 Aug 2026 (adversarial review): the
+      # continuous-compliance-over-lifetime duty belongs to 72(2), not 72(1).
       - instrument: "Regulation (EU) 2024/1689"
         article: "72"
         paragraph: "1"
         requirement: >-
-          Providers establish a post-market monitoring system proportionate
-          to the nature of the AI technologies, ensuring continued compliance
-          over the system's lifetime.
+          Providers establish and document a post-market monitoring system
+          proportionate to the nature of the AI technologies and the risks
+          of the high-risk AI system.
+      - instrument: "Regulation (EU) 2024/1689"
+        article: "72"
+        paragraph: "2"
+        requirement: >-
+          The post-market monitoring system actively and systematically
+          collects and analyses relevant data on performance throughout the
+          systems' lifetime, allowing the provider to evaluate continuous
+          compliance with the requirements.

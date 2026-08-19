@@ -7,15 +7,18 @@ The template parameter models live here too, so ``templates.py`` can validate
 ``rule.params`` into typed access without a circular import: this module knows
 template NAMES only (:data:`KNOWN_TEMPLATES`), never template code. The engine
 registry is pinned 1:1 to that name set by test, and a held-out template later
-means one new name here plus one registered function — nothing else moves.
+means exactly three additions: a name in :data:`KNOWN_TEMPLATES`, its params
+model in :data:`PARAMS_MODELS` (both here), and a registered function in
+``engine.REGISTRY`` — the pinning tests fail on any partial addition.
 """
 
 from __future__ import annotations
 
+from collections.abc import Hashable
 from enum import StrEnum
 from pathlib import Path
 from types import MappingProxyType
-from typing import TYPE_CHECKING, Final, Literal
+from typing import TYPE_CHECKING, Any, Final, Literal
 
 import yaml
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
@@ -57,8 +60,11 @@ KNOWN_TEMPLATES: Final[frozenset[str]] = frozenset(
 _CONSTRAINT_ID_PATTERN: Final = r"^[A-Z][A-Z0-9]*\.[a-z][a-z0-9_]*$"
 
 #: An article must actually be named — hard rule 4 is about substance, so a
-#: placeholder like "TBD" fails the pattern at load time.
-_ARTICLE_PATTERN: Final = r"^\d+[0-9a-z]*$"
+#: placeholder like "TBD" fails the pattern at load time. Explicit ASCII
+#: classes, never ``\d``: the rust-regex ``\d`` matches any Unicode decimal
+#: digit, so Arabic-Indic/fullwidth lookalikes would load; and the leading
+#: [1-9] rejects the nonexistent article "0" (adversarial review, 19 Aug 2026).
+_ARTICLE_PATTERN: Final = r"^[1-9][0-9]*[a-z]*$"
 
 
 def _substantive(value: str) -> str:
@@ -82,6 +88,16 @@ class LegalReference(BaseModel):
     @classmethod
     def _no_placeholders(cls, value: str) -> str:
         return _substantive(value)
+
+    @field_validator("paragraph")
+    @classmethod
+    def _optional_but_substantive(cls, value: str) -> str:
+        # Empty is fine (a citation may be article-level); a placeholder is
+        # not — the crosswalk template ships literal TODO paragraphs, one
+        # copy-paste away from audit evidence (adversarial review, 19 Aug).
+        if value:
+            _substantive(value)
+        return value
 
 
 class _Params(BaseModel):
@@ -152,7 +168,10 @@ class ObjectAbsenceParams(_Params):
     object_type: str
     attribute: str = ""
     violating_when: Literal["always", "non_empty", "equals"]
-    value: str = ""
+    #: Required (may be explicit "") exactly when violating_when is "equals";
+    #: an implicit default of "" would make an equals rule with a forgotten
+    #: value match every EMPTY attribute — inverting an STD-style predicate.
+    value: str | None = None
 
     @field_validator("anchor_event_type")
     @classmethod
@@ -183,7 +202,9 @@ class ObjectAbsenceParams(_Params):
     def _predicate_needs_attribute(self) -> ObjectAbsenceParams:
         if self.violating_when != "always" and not self.attribute:
             raise ValueError(f"violating_when={self.violating_when!r} needs an attribute")
-        if self.violating_when != "equals" and self.value:
+        if self.violating_when == "equals" and self.value is None:
+            raise ValueError("violating_when='equals' needs an explicit value")
+        if self.violating_when != "equals" and self.value is not None:
             raise ValueError("value is only meaningful with violating_when='equals'")
         return self
 
@@ -271,7 +292,13 @@ class Rule(BaseModel):
 
     @model_validator(mode="after")
     def _params_fit_the_template(self) -> Rule:
-        PARAMS_MODELS[self.template].model_validate(self.params)
+        model = PARAMS_MODELS.get(self.template)
+        if model is None:
+            # ValueError, never a bare KeyError: pydantic wraps only
+            # ValueError/AssertionError into ValidationError, and the
+            # held-out seam must fail as a load error, not a crash.
+            raise ValueError(f"template {self.template!r} has no parameter model in PARAMS_MODELS")
+        model.model_validate(self.params)
         return self
 
 
@@ -293,11 +320,35 @@ class RuleSet(BaseModel):
         return self
 
 
+class _StrictKeyLoader(yaml.SafeLoader):
+    """SafeLoader that rejects duplicate mapping keys.
+
+    PyYAML is silently last-wins on duplicates, so a merge artifact
+    duplicating ``legal_basis:`` (or a whole ``rules:`` block) would discard
+    the first occurrence with no error — validated citations vanishing from
+    the loaded ruleset (adversarial review, 19 Aug 2026).
+    """
+
+    def construct_mapping(self, node: yaml.MappingNode, deep: bool = False) -> dict[Any, Any]:
+        seen: set[object] = set()
+        for key_node, _value_node in node.value:
+            # types-PyYAML leaves construct_object untyped; the value is the
+            # parsed scalar/collection for the key node.
+            key = self.construct_object(key_node, deep=True)  # type: ignore[no-untyped-call]
+            if isinstance(key, Hashable):
+                if key in seen:
+                    raise yaml.constructor.ConstructorError(
+                        None, None, f"duplicate mapping key {key!r}", key_node.start_mark
+                    )
+                seen.add(key)
+        return super().construct_mapping(node, deep)
+
+
 def load_ruleset(path: Path) -> RuleSet:
     """Load and validate a ruleset. Raises if any rule lacks an article reference."""
     text = path.read_text(encoding="utf-8")
     try:
-        raw = yaml.safe_load(text)
+        raw = yaml.load(text, Loader=_StrictKeyLoader)  # a SafeLoader subclass
     except yaml.YAMLError as exc:
         raise ValueError(f"{path.name}: not valid YAML: {exc}") from exc
     if not isinstance(raw, dict):

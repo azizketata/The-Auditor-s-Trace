@@ -99,6 +99,37 @@ class TestInvariantI3:
         with pytest.raises(ValidationError):
             RuleSet.model_validate(_ruleset([_rule(legal_basis=basis)]))
 
+    def test_article_must_be_an_ascii_article_number(self) -> None:
+        """Adversarial-review regression: the rust-regex \\d matches any
+        Unicode decimal digit, so Arabic-Indic and fullwidth lookalikes
+        loaded, as did the nonexistent article \"0\". Articles are ASCII,
+        nonzero-leading, or they do not load."""
+        fullwidth_14 = chr(0xFF11) + chr(0xFF14)
+        arabic_indic_14 = chr(0x0661) + chr(0x0664)
+        for bad in (arabic_indic_14, fullwidth_14, "0", "014", ""):
+            basis = _legal_basis()
+            basis[0]["article"] = bad
+            with pytest.raises(ValidationError):
+                RuleSet.model_validate(_ruleset([_rule(legal_basis=basis)]))
+        good = _legal_basis()
+        good[0]["article"] = "16a"
+        RuleSet.model_validate(_ruleset([_rule(legal_basis=good)]))
+
+    def test_paragraph_placeholders_rejected(self) -> None:
+        """Adversarial-review regression: paragraph carried neither the
+        pattern nor the placeholder check, so paragraph: \"TODO\" loaded —
+        and the crosswalk template ships literal TODO paragraphs, one
+        copy-paste away from audit evidence."""
+        for bad in ("TODO", "tbd", "TODO e.g. 4(d)"):
+            basis = _legal_basis()
+            basis[0]["paragraph"] = bad
+            with pytest.raises(ValidationError):
+                RuleSet.model_validate(_ruleset([_rule(legal_basis=basis)]))
+        for good_value in ("", "2(f)-(g)", "4(d)"):
+            basis = _legal_basis()
+            basis[0]["paragraph"] = good_value
+            RuleSet.model_validate(_ruleset([_rule(legal_basis=basis)]))
+
 
 class TestRuleSchema:
     def test_unknown_template_rejected(self) -> None:
@@ -144,6 +175,18 @@ class TestRuleSchema:
                     "qualifier": "declares",  # declarations are never semantic
                     "object_type": "PolicyVersion",
                     "violating_when": "always",
+                },
+            ),
+            (
+                # equals with no value would default to "" and match every
+                # EMPTY attribute — inverting an STD-style predicate.
+                "object_absence",
+                {
+                    "anchor_event_type": "make_decision",
+                    "qualifier": "governed_by",
+                    "object_type": "PolicyVersion",
+                    "attribute": "effective_to",
+                    "violating_when": "equals",
                 },
             ),
         ]
@@ -199,6 +242,71 @@ class TestLoader:
         path.write_text("- just\n- a\n- list\n", encoding="utf-8")
         with pytest.raises(ValueError, match=r"rules\.yaml"):
             load_ruleset(path)
+
+    def test_duplicate_yaml_keys_rejected(self, tmp_path: Path) -> None:
+        """Adversarial-review regression: yaml.safe_load is last-wins on
+        duplicate mapping keys, so a merge artifact duplicating a rule's
+        legal_basis: (or a whole rules: block) silently discarded the first
+        occurrence — validated citations vanishing without any error."""
+        import yaml
+
+        base = yaml.safe_load(
+            (Path(__file__).resolve().parent.parent.parent / "rules" / "rules.yaml").read_text(
+                encoding="utf-8"
+            )
+        )
+        rule = base["rules"][0]
+        duplicated_key = (
+            "schema_version: 1\n"
+            'ruleset_version: "2026-08.test"\n'
+            "rules:\n"
+            "  - constraint_id: T1.synchronised_approval\n"
+            "    template: t1_synchronised_approval\n"
+            "    description: duplicate-key probe\n"
+            "    severity: high\n"
+            "    severity: low\n"
+            "    params:\n"
+            "      allowed_roles: [credit_officer]\n"
+            "      decision_outcomes: [grant, deny]\n"
+            "    legal_basis:\n"
+            '      - instrument: "Regulation (EU) 2024/1689"\n'
+            '        article: "14"\n'
+            '        requirement: "Human oversight over the output."\n'
+        )
+        path = tmp_path / "rules.yaml"
+        path.write_text(duplicated_key, encoding="utf-8")
+        with pytest.raises(ValueError, match="duplicate"):
+            load_ruleset(path)
+
+        assert rule["constraint_id"]  # the shipped file itself parses cleanly
+
+        shadowed_block = 'schema_version: 1\nrules: []\nrules: []\nruleset_version: "x"\n'
+        path.write_text(shadowed_block, encoding="utf-8")
+        with pytest.raises(ValueError, match="duplicate"):
+            load_ruleset(path)
+
+    def test_params_models_pinned_to_known_templates(self) -> None:
+        """Adversarial-review regression: KNOWN_TEMPLATES and REGISTRY were
+        pinned to each other, but PARAMS_MODELS was pinned to neither — a
+        held-out template added per the documented seam crashed the loader
+        with a bare KeyError. All three vocabularies are the same set."""
+        from auditors_trace.constraints.ruleset import PARAMS_MODELS
+
+        assert frozenset(PARAMS_MODELS) == KNOWN_TEMPLATES
+
+    def test_missing_params_model_is_a_validation_error(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Defence in depth behind the pin above: even if a template name
+        lands in KNOWN_TEMPLATES without a params model, the loader must
+        fail as a ValidationError, never a raw KeyError."""
+        import auditors_trace.constraints.ruleset as ruleset_module
+
+        monkeypatch.setattr(ruleset_module, "KNOWN_TEMPLATES", KNOWN_TEMPLATES | {"t6_heldout"})
+        with pytest.raises(ValidationError, match="t6_heldout"):
+            RuleSet.model_validate(
+                _ruleset([_rule(constraint_id="T6.heldout", template="t6_heldout", params={})])
+            )
 
     def test_known_templates_is_the_closed_registry_vocabulary(self) -> None:
         assert KNOWN_TEMPLATES == frozenset(

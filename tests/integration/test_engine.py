@@ -133,12 +133,41 @@ def test_distractor_sessions_produce_no_t1_violations(
 ) -> None:
     """D1 (in-roster boundary approver) and D2 (refer without approval) are
     near-misses by construction: no T1 violation may fire in their sessions
-    unless the ground truth says so."""
+    unless the ground truth says so.
+
+    Adversarial-review hardening: T1 silence alone is implied by the fp==0
+    recall test, so this also asserts the D1 near-miss EXISTS in the mapped
+    log (the swapped risk_manager approver) — the substance a no-op surgery
+    regression would erase. The injector-side twin lives in
+    test_injection.py::test_d1_surgery_lands_in_the_spans."""
+    from auditors_trace.model.ocel_schema import EventType, ObjectType, Qualifier
+
     log = _map_split(engine_splits / "single")
     labels = _labels(engine_splits / "single")
     distractor_sessions = {d.session_id for d in labels.distractors}
-    if not distractor_sessions:
-        pytest.skip("this hermetic run allocated no distractors")
+    d1_sessions = {d.session_id for d in labels.distractors if d.kind == "D1_authority_boundary"}
+    assert d1_sessions, "the hermetic single split must allocate at least one D1 distractor"
+
+    approver_role = {
+        o.object_id: dict(o.attributes).get("role")
+        for o in log.objects
+        if o.object_type is ObjectType.HUMAN_APPROVER
+    }
+    verdict_types = (EventType.GRANT_APPROVAL, EventType.DENY_APPROVAL)
+    for session_id in sorted(d1_sessions):
+        roles = {
+            approver_role[relation.object_id]
+            for event in log.events
+            if event.event_type in verdict_types
+            and any(
+                r.qualifier is Qualifier.WITHIN and r.object_id == session_id
+                for r in event.relations
+            )
+            for relation in event.relations
+            if relation.qualifier is Qualifier.PERFORMED_BY and relation.object_id in approver_role
+        }
+        assert roles == {"risk_manager"}, (session_id, roles)
+
     t1_truth_sessions = {
         v.session_id for v in labels.violations if v.constraint_id.startswith("T1.")
     }
@@ -221,3 +250,103 @@ def test_full_scale_mixed_recall(ruleset: RuleSet) -> None:
 def test_full_scale_clean_is_silent(ruleset: RuleSet) -> None:
     log = _map_split(GENERATED_SPLITS / "clean")
     assert evaluate(log, ruleset) == []
+
+
+def test_variant_anchors_survive_the_pipeline(
+    engine_base_run: Path, ruleset: RuleSet, tmp_path: Path
+) -> None:
+    """Adversarial-review regression: the hermetic corpus (seed 7) only ever
+    realises V7-repoint and V4-leaf, so the delete-mode / tool-call / V6
+    variant anchor joins (injector surgery -> mapper -> template citation)
+    were CI-untested. Force every variant of the variant-axis classes through
+    the full pipeline and assert the engine's citation equals the
+    pre-registered anchor exactly, with nothing else firing."""
+    import json
+
+    from auditors_trace.ingest.mapper import map_span_trees
+    from auditors_trace.ingest.otel_reader import build_span_trees, read_spans
+    from auditors_trace.scenario.injector import (
+        REGISTRY,
+        FaultContext,
+        RunView,
+        ViolationDraft,
+        _recompute_session_end,
+        _renumber_seq,
+        _session_view,
+        load_catalogue,
+    )
+
+    catalogue = load_catalogue(CATALOGUE)
+    entries = {e.entry_id: e for e in catalogue.entries}
+    sessions = []
+    for span_file in sorted(engine_base_run.glob("*.jsonl")):
+        rows = tuple(
+            json.loads(line) for line in span_file.read_text(encoding="utf-8").split("\n") if line
+        )
+        sessions.append((_session_view(rows), rows))
+
+    def eligible_rows(entry_id: str) -> tuple[object, tuple[dict[str, object], ...]]:
+        registration = REGISTRY[entries[entry_id].injection_function]
+        for view, rows in sessions:
+            if registration.eligible(view):
+                return view, rows
+        raise AssertionError(f"no eligible session for {entry_id} in the hermetic run")
+
+    def run_variant(entry_id: str, seed: int, out_name: str) -> tuple[ViolationDraft, object]:
+        view, rows = eligible_rows(entry_id)
+        entry = entries[entry_id]
+        ctx = FaultContext(
+            seed=seed,
+            entry=entry,
+            session=view,
+            run=RunView(sessions=(view,)),
+            variant_key=f"anchor-{seed}-{entry_id}-{view.session_id}",
+        )
+        result = REGISTRY[entry.injection_function].fn(rows, ctx)
+        final_rows = _recompute_session_end(_renumber_seq(result.rows))
+        out = tmp_path / f"{out_name}.jsonl"
+        out.write_text(
+            "\n".join(
+                json.dumps(r, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+                for r in final_rows
+            )
+            + "\n",
+            encoding="utf-8",
+            newline="\n",
+        )
+        return result.draft, map_span_trees(build_span_trees(read_spans(out)))
+
+    def v6_variant(draft: ViolationDraft, run: object) -> str:
+        decision_id = draft.ocel_object_ids[0]
+        codes = next(
+            dict(o.attributes).get("reason_codes")
+            for o in run.log.objects  # type: ignore[attr-defined]
+            if o.object_id == decision_id
+        )
+        return "blank_codes" if codes == () else "strip_explains"
+
+    classifiers = {
+        "V7": lambda draft, run: "delete" if len(draft.ocel_event_ids) == 1 else "repoint",
+        "V4": lambda draft, run: "leaf" if len(draft.removed_span_ids) == 1 else "tool_call",
+        "V6": v6_variant,
+    }
+    wanted = {
+        "V7": {"delete", "repoint"},
+        "V4": {"leaf", "tool_call"},
+        "V6": {"blank_codes", "strip_explains"},
+    }
+    for entry_id, variants in sorted(wanted.items()):
+        seen: set[str] = set()
+        for seed in range(80):
+            if seen == variants:
+                break
+            draft, run = run_variant(entry_id, seed, f"{entry_id.lower()}s{seed}")
+            variant = classifiers[entry_id](draft, run)
+            if variant in seen:
+                continue
+            seen.add(variant)
+            predicted = evaluate(run.log, ruleset)  # type: ignore[attr-defined]
+            assert [(v.constraint_id, frozenset(v.ocel_event_ids)) for v in predicted] == [
+                (entries[entry_id].constraint_id, frozenset(draft.ocel_event_ids))
+            ], (entry_id, variant, predicted)
+        assert seen == variants, (entry_id, seen)

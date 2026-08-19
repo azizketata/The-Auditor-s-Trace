@@ -438,3 +438,67 @@ class TestInjectCli:
         assert code == 0
         labels = read_labels(tmp_path / "auto" / "single" / "labels.json")
         assert len(labels.violations) == 8
+
+
+def test_d1_surgery_lands_in_the_spans(splits: Path) -> None:
+    """Adversarial-review regression: a mutation probe showed _apply_d1
+    regressing to a no-op kept the entire suite green (labels metadata is
+    written outside the surgery, and the engine-side distractor test is
+    implied by fp==0). The near-miss must exist in substance: D1 records
+    carry their span ids, and the mapped log shows the session's approval
+    verdict performed by the boundary approver APR-003 (risk_manager)."""
+    from auditors_trace.model.ocel_schema import EventType, ObjectType, Qualifier
+    from auditors_trace.scenario.injector import read_labels
+
+    labels = read_labels(splits / "single" / "labels.json")
+    d1 = [d for d in labels.distractors if d.kind == "D1_authority_boundary"]
+    assert d1, "the hermetic single split must allocate at least one D1 distractor"
+    run = _map_split(splits / "single")
+    approver_role = {
+        o.object_id: dict(o.attributes).get("role")
+        for o in run.log.objects
+        if o.object_type is ObjectType.HUMAN_APPROVER
+    }
+    verdict_types = (EventType.GRANT_APPROVAL, EventType.DENY_APPROVAL)
+    for distractor in d1:
+        assert distractor.span_ids, distractor.distractor_id
+        performers = [
+            relation.object_id
+            for event in run.log.events
+            if event.event_type in verdict_types
+            and any(
+                r.qualifier is Qualifier.WITHIN and r.object_id == distractor.session_id
+                for r in event.relations
+            )
+            for relation in event.relations
+            if relation.qualifier is Qualifier.PERFORMED_BY and relation.object_id in approver_role
+        ]
+        assert performers == ["APR-003"], (distractor.session_id, performers)
+    assert approver_role["APR-003"] == "risk_manager"
+
+
+def test_t1_class_labels_sit_only_in_approval_requiring_sessions(splits: Path) -> None:
+    """Adversarial-review regression (Phase 5 amendment 4, end-to-end guard):
+    the eligibility fix is otherwise pinned only at the lambda. No T1-class
+    ground-truth label may sit in a session whose decision outcome is refer -
+    such labels are unmatchable by the pre-registered T1 semantics."""
+    from auditors_trace.model.ocel_schema import EventType, Qualifier
+    from auditors_trace.scenario.injector import read_labels
+
+    for split in ("single", "mixed"):
+        run = _map_split(splits / split)
+        outcome_by_session: dict[str, Any] = {}
+        for event in run.log.events:
+            if event.event_type is EventType.MAKE_DECISION:
+                session_id = next(
+                    (r.object_id for r in event.relations if r.qualifier is Qualifier.WITHIN),
+                    "",
+                )
+                outcome_by_session[session_id] = dict(event.attributes).get("outcome")
+        labels = read_labels(splits / split / "labels.json")
+        for violation in labels.violations:
+            if violation.constraint_id.startswith("T1."):
+                assert outcome_by_session.get(violation.session_id) in ("grant", "deny"), (
+                    split,
+                    violation.violation_id,
+                )
