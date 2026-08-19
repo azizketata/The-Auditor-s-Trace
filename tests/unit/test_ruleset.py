@@ -49,6 +49,7 @@ def _rule(**overrides: Any) -> dict[str, Any]:
         "constraint_id": "T1.synchronised_approval",
         "template": "t1_synchronised_approval",
         "description": "Every approval-requiring decision has a prior authorised grant.",
+        "formal": "forall d in make_decision with outcome in {grant, deny}: exists prior approval",
         "severity": "high",
         "params": {
             "allowed_roles": ["credit_officer"],
@@ -206,6 +207,17 @@ class TestRuleSchema:
     def test_unknown_severity_rejected(self) -> None:
         with pytest.raises(ValidationError):
             RuleSet.model_validate(_ruleset([_rule(severity="critical")]))
+
+    def test_formal_statement_required_and_substantive(self) -> None:
+        """Phase 6: `formal` feeds evidence records' constraint.formal (§8),
+        pre-registered in the ruleset like every other frozen parameter."""
+        missing = _rule()
+        del missing["formal"]
+        with pytest.raises(ValidationError):
+            RuleSet.model_validate(_ruleset([missing]))
+        for bad in ("", "TODO write the formal statement", "tbd"):
+            with pytest.raises(ValidationError):
+                RuleSet.model_validate(_ruleset([_rule(formal=bad)]))
 
 
 class TestRuleSetSchema:

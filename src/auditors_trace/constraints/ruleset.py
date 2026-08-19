@@ -56,22 +56,36 @@ KNOWN_TEMPLATES: Final[frozenset[str]] = frozenset(
 
 #: Mirrors ``scenario.injector._CONSTRAINT_ID_PATTERN``. The loader checks
 #: shape only; the closed six-id vocabulary is pinned by the content tests,
-#: keeping the held-out extension seam open (section 7a).
-_CONSTRAINT_ID_PATTERN: Final = r"^[A-Z][A-Z0-9]*\.[a-z][a-z0-9_]*$"
+#: keeping the held-out extension seam open (section 7a). Public: the evidence
+#: record and crosswalk schemas (Phase 6) share it.
+CONSTRAINT_ID_PATTERN: Final = r"^[A-Z][A-Z0-9]*\.[a-z][a-z0-9_]*$"
 
 #: An article must actually be named — hard rule 4 is about substance, so a
 #: placeholder like "TBD" fails the pattern at load time. Explicit ASCII
 #: classes, never ``\d``: the rust-regex ``\d`` matches any Unicode decimal
 #: digit, so Arabic-Indic/fullwidth lookalikes would load; and the leading
 #: [1-9] rejects the nonexistent article "0" (adversarial review, 19 Aug 2026).
-_ARTICLE_PATTERN: Final = r"^[1-9][0-9]*[a-z]*$"
+#: Public: shared with the evidence record and crosswalk schemas (Phase 6).
+ARTICLE_PATTERN: Final = r"^[1-9][0-9]*[a-z]*$"
 
 
-def _substantive(value: str) -> str:
+def substantive_text(value: str) -> str:
+    """Reject placeholder text wherever it could reach audit evidence.
+
+    Public seam for the sibling schemas (evidence records, crosswalk): hard
+    rule 4 is about substance, and a TODO one copy-paste from a legal citation
+    must fail at load time, never at audit time.
+    """
     lowered = value.strip().lower()
     if not lowered or "todo" in lowered or lowered == "tbd":
         raise ValueError(f"placeholder text {value!r} is not a legal reference (hard rule 4)")
     return value
+
+
+#: Internal aliases retained for this module's own validators.
+_CONSTRAINT_ID_PATTERN: Final = CONSTRAINT_ID_PATTERN
+_ARTICLE_PATTERN: Final = ARTICLE_PATTERN
+_substantive = substantive_text
 
 
 class LegalReference(BaseModel):
@@ -279,9 +293,18 @@ class Rule(BaseModel):
     constraint_id: str = Field(pattern=_CONSTRAINT_ID_PATTERN)
     template: str
     description: str = Field(min_length=1)
+    #: The formal statement of the constraint, transcribed from the template's
+    #: implemented semantics. Feeds §8's constraint.formal (Phase 6) and is
+    #: frozen with the ruleset at I4.
+    formal: str = Field(min_length=1)
     severity: Severity
     params: dict[str, object]
     legal_basis: tuple[LegalReference, ...] = Field(min_length=1)  # invariant I3
+
+    @field_validator("description", "formal")
+    @classmethod
+    def _substantive_statements(cls, value: str) -> str:
+        return substantive_text(value)
 
     @field_validator("template")
     @classmethod
@@ -320,13 +343,14 @@ class RuleSet(BaseModel):
         return self
 
 
-class _StrictKeyLoader(yaml.SafeLoader):
+class StrictKeyLoader(yaml.SafeLoader):
     """SafeLoader that rejects duplicate mapping keys.
 
     PyYAML is silently last-wins on duplicates, so a merge artifact
     duplicating ``legal_basis:`` (or a whole ``rules:`` block) would discard
     the first occurrence with no error — validated citations vanishing from
-    the loaded ruleset (adversarial review, 19 Aug 2026).
+    the loaded ruleset (adversarial review, 19 Aug 2026). Public: the
+    crosswalk loader (Phase 6) shares it.
     """
 
     def construct_mapping(self, node: yaml.MappingNode, deep: bool = False) -> dict[Any, Any]:
@@ -348,7 +372,7 @@ def load_ruleset(path: Path) -> RuleSet:
     """Load and validate a ruleset. Raises if any rule lacks an article reference."""
     text = path.read_text(encoding="utf-8")
     try:
-        raw = yaml.load(text, Loader=_StrictKeyLoader)  # a SafeLoader subclass
+        raw = yaml.load(text, Loader=StrictKeyLoader)  # a SafeLoader subclass
     except yaml.YAMLError as exc:
         raise ValueError(f"{path.name}: not valid YAML: {exc}") from exc
     if not isinstance(raw, dict):

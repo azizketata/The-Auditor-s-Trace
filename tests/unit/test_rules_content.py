@@ -92,6 +92,21 @@ class TestParameterProvenance:
         catalogue_classes = {r.classification for r in scenario.resources}
         assert set(prohibited) <= catalogue_classes
 
+    def test_every_rule_has_a_substantive_formal_statement(self, ruleset: RuleSet) -> None:
+        """§8's constraint.formal is sourced from the ruleset (Phase 6): every
+        rule carries a formal statement naming its real event types."""
+        vocabulary = {
+            "T1.synchronised_approval": "grant_approval",
+            "T2.mandatory_data_coverage": "retrieve_data",
+            "T3.delegation_integrity": "handoff",
+            "T4.reason_code_presence": "emit_reasoning",
+            "T5.prohibited_attribute_access": "lawful_basis",
+            "STD.policy_version_current": "effective_to",
+        }
+        for rule in ruleset.rules:
+            assert rule.formal.strip(), rule.constraint_id
+            assert vocabulary[rule.constraint_id] in rule.formal, rule.constraint_id
+
     def test_std_params_bind_to_the_policy_invariants(
         self, ruleset: RuleSet, scenario: ScenarioCatalogue
     ) -> None:

@@ -108,14 +108,37 @@ explicit decision — it emits spans and never touches the OCEL model). Built:
   (session, orphaned agent) by excluding orphan-cited handoffs from its
   cycle check — anchor changes here break the exact ground-truth join.
 
+- `evidence/` — the Phase 6 renderer: `record.py` (§8 pydantic models, exact
+  field inventory, substance-validated), `chain.py` (record_hash excludes
+  integrity+generated_at structurally; chain in engine-canonical order;
+  verify_chain RECOMPUTES hashes — the tamper test; `records_jsonl` is the
+  single byte-level bundle authority), `crosswalk.py` (loader takes the
+  required-id set; the all-TODO template can never load; cross-validated
+  against the ruleset), `renderer.py` (RenderIndex prebuilt from log +
+  span-index sidecar — the renderer never re-queries the log; typed errors),
+  `pack.py` (stdlib markdown study pack). `cli.py` implements `check` (the
+  §8 rerun command; exit codes 0/2/3/4/6/7; raw-bytes output) and `pack`
+  (regenerates the committed docs/study/evidence-example.md).
+  `rules/rules.yaml` gained a required `formal` field per rule (I4 bundle).
+  `rules/crosswalk.yaml` is intentionally ABSENT (its content is
+  human-authored, §11); the loadable stand-in is
+  tests/fixtures/crosswalk_fixture.yaml, clearly labelled; evidence goldens
+  (tests/golden/evidence/, cut via _regen.py) re-cut when the real crosswalk
+  lands, pre-freeze. GT span agreement is subset-shaped (labels pre-register
+  manifestation spans beyond the anchor events for V3/V6-B). Week-3 gate
+  "evidence chain valid" met; B4's bundle check = the golden bitwise test on
+  the CI matrix.
+
 Beware: `data/generated/ocel/*.jsonocel` are convenience artefacts that go
 stale when splits are regenerated — verification always re-maps from each
 split's `manifest.json` (sha256-verified). Re-running the ingest CLI also
 rewrites `results/e2_coverage.json`; that committed file belongs to the
 50-session `make ingest` base run — restore it if a splits ingest clobbers it.
+`docs/study/evidence-example.md` is likewise derived: regenerate via
+`cli pack` (recompute-tested), never hand-edit.
 
-Still stubs: `evidence/`, `baselines/`, `eval/` (except the pulled-forward
-metrics above).
+Still stubs: `baselines/`, and in `eval/` everything except
+`confusion`/`precision_recall_f1`.
 `data/catalogue/scenario_credit.yaml` is the scenario catalogue — distinct
 from `violations.yaml` (draft; frozen only at the I4 freeze commit).
 Do NOT edit `scenario_credit.yaml`, even its comments: its byte hash feeds

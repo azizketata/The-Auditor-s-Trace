@@ -573,6 +573,65 @@ The crosswalk file is Alina's deliverable in content; the harness builds the loa
 
 **DoD.** All pass, including the tamper test. This satisfies claim C4's technical half.
 
+*Phase 6 amendments (19 Aug 2026, recorded at implementation — resolutions of
+spec gaps the section 8/9-P6 text left open):*
+
+1. *Chain semantics: records sort by (constraint.id, evidence.ocel_event_ids,
+   evidence.ocel_object_ids) — identical to the engine's canonical violation
+   order, so chain order equals `evaluate()` output order; `chain_index` is
+   the 0-based contiguous list position; one chain per rendered log;
+   verification RECOMPUTES every record's hash.*
+2. *`violation_id` payload: canonical JSON of `{"constraint_id",
+   "input_log_sha256", "ocel_event_ids": sorted}` (house dict style), sha256
+   first 16 hex. Distinct by design from the injector's ground-truth ids
+   (amendment C2); the two id spaces are never compared.*
+3. *Source split: `constraint.natural_language`, `legal_basis[]` and
+   `standard_refs[]` come from the crosswalk verbatim; `constraint.formal`
+   and `ruleset_version` from the ruleset — `rules.yaml` gained a required,
+   substance-validated `formal` field per rule (transcribed from the
+   implemented template semantics; an I4 freeze-bundle item); `severity`
+   comes from the rule, and the crosswalk is cross-validated against the
+   ruleset (severity + legal-basis article sets must agree).*
+4. *Crosswalk: fixture-only until the human-authored `rules/crosswalk.yaml`
+   lands (§11 — the harness never generates its content). The loader takes
+   the required constraint-id set explicitly, rejects placeholder text
+   everywhere (the all-TODO template can never load), rejects duplicate YAML
+   keys, and requires any retention block to equal section 8's constant.
+   Goldens are re-cut against the real crosswalk pre-freeze.*
+5. *`provenance.engine_commit` is an explicit render input (default "", which
+   the goldens pin) — reading git at render time would be environment-bound
+   and break golden byte-identity (I1).*
+6. *Context derivation: a prebuilt render index (the renderer never touches
+   the log) — `policy_version` from the `governed_by` PolicyVersion of the
+   session's first `make_decision`; `model_versions`/`agent_versions` over
+   the session's SEMANTIC relations only (`uses`, `performed_by`, `from`,
+   `to`; `declares` never contributes). Violations without a session render
+   empty context.*
+7. *`evidence.otel_trace_id` stays singular: cited events spanning more than
+   one trace raise a typed error (engine violations never do);
+   `otel_span_ids` are the cited events' OWN spans in citation order, 1:1 —
+   never enrichment spans (B1). Ground-truth agreement is subset-shaped:
+   every cited span is pre-registered in `expected_evidence_span_ids`, which
+   may pre-register manifestation sites beyond the anchor events (V3's
+   request_approval span, V6-B's stripped emit_reasoning span).*
+8. *`rerun_command` embeds the substituted values; `--log`/`--rules` are
+   verification pins (mismatch = exit 4) and artifact paths are supplied at
+   invocation. `cli check` exit codes: 0 ok / 2 usage / 3 input unavailable /
+   4 verification mismatch / 6 crosswalk error / 7 model-ingest-render
+   rejection. Output is raw bytes (stdout via the buffer; atomic file
+   writes) so Windows newline translation can never break reproduction.*
+9. *`Violation.session_id`/`detail` deliberately have no section 8 home; no
+   `schema_version` field was added (section 8 exact). `generated_at` exists
+   as an optional display field, structurally excluded from every hash.
+   Stale pre-B12 wording fixed: the package is "hash-chained,
+   tamper-evident", never "signed" (B3), and `reproducibility` carries only
+   the rerun command.*
+10. *Beyond §9-P6's deliverables (user-approved): a stdlib-only study-pack
+    renderer (`evidence/pack.py` + `cli pack`) producing the committed
+    `docs/study/evidence-example.md` — Study A's "rendered example evidence
+    trace" and Study B's record-plus-log-excerpt; and a strict span-index
+    reader (`ingest.mapper.read_span_index`) as the sidecar's way back.*
+
 ---
 
 ### Phase 7 — Baselines

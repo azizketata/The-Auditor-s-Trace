@@ -62,6 +62,7 @@ def _t3_rule(entrypoint_roles: tuple[str, ...] = ("intake",)) -> Rule:
         constraint_id="T3.delegation_integrity",
         template="t3_delegation_integrity",
         description="test rule",
+        formal="test formal statement",
         severity=Severity.MEDIUM,
         params={"entrypoint_roles": list(entrypoint_roles)},
         legal_basis=(

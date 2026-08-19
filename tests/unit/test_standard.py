@@ -26,6 +26,7 @@ def _rule(constraint_id: str, template: str, **params: object) -> Rule:
         constraint_id=constraint_id,
         template=template,
         description="test rule",
+        formal="test formal statement",
         severity=Severity.MEDIUM,
         params=dict(params),
         legal_basis=(

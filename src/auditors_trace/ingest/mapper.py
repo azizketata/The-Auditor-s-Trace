@@ -36,6 +36,7 @@ that links OCEL events back to the telemetry they came from.
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
@@ -67,6 +68,8 @@ from auditors_trace.model.span_contract import (
 )
 
 if TYPE_CHECKING:
+    from pathlib import Path
+
     from auditors_trace.model.span_contract import SessionScope
 
 
@@ -123,6 +126,82 @@ def span_index_json(index: SpanIndex) -> str:
         ],
     }
     return canonical_json(payload) + "\n"
+
+
+def _index_str(entry: dict[str, object], key: str, where: str) -> str:
+    value = entry.get(key)
+    if not isinstance(value, str) or not value:
+        raise IngestError(f"span index {where}.{key} must be a non-empty string, got {value!r}")
+    return value
+
+
+def _index_str_list(entry: dict[str, object], key: str, where: str) -> tuple[str, ...]:
+    value = entry.get(key)
+    if not isinstance(value, list) or any(not isinstance(item, str) or not item for item in value):
+        raise IngestError(f"span index {where}.{key} must be a list of non-empty strings")
+    return tuple(value)
+
+
+def read_span_index(path: Path) -> SpanIndex:
+    """Parse a span-index sidecar back into a :class:`SpanIndex`.
+
+    The Phase 6 evidence renderer's way back from disk. A strict mirror of
+    :func:`span_index_json`: exact key sets, pinned ``schema_version``,
+    non-empty string ids, unique event and session ids — a sidecar that
+    drifted from the writer's shape must fail loudly, never feed wrong span
+    citations into an evidence record.
+    """
+    try:
+        raw = json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        raise IngestError(f"{path.name}: not valid JSON: {exc}") from exc
+    if not isinstance(raw, dict) or set(raw) != {"schema_version", "sessions", "events"}:
+        raise IngestError(f"{path.name}: expected exactly the keys schema_version/sessions/events")
+    version = raw["schema_version"]
+    if type(version) is not int or version != 1:
+        raise IngestError(f"{path.name}: unsupported schema_version {version!r}; expected 1")
+    if not isinstance(raw["sessions"], list) or not isinstance(raw["events"], list):
+        raise IngestError(f"{path.name}: sessions and events must be lists")
+
+    sessions: list[SessionSpanRef] = []
+    for entry in raw["sessions"]:
+        if not isinstance(entry, dict) or set(entry) != {
+            "session_id",
+            "trace_id",
+            "root_span_id",
+            "session_span_ids",
+        }:
+            raise IngestError(f"{path.name}: malformed session entry {entry!r}")
+        sessions.append(
+            SessionSpanRef(
+                session_id=_index_str(entry, "session_id", "sessions"),
+                trace_id=_index_str(entry, "trace_id", "sessions"),
+                root_span_id=_index_str(entry, "root_span_id", "sessions"),
+                session_span_ids=_index_str_list(entry, "session_span_ids", "sessions"),
+            )
+        )
+    events: list[EventSpanRef] = []
+    for entry in raw["events"]:
+        if not isinstance(entry, dict) or set(entry) != {
+            "event_id",
+            "trace_id",
+            "span_id",
+            "enrichment_span_ids",
+        }:
+            raise IngestError(f"{path.name}: malformed event entry {entry!r}")
+        events.append(
+            EventSpanRef(
+                event_id=_index_str(entry, "event_id", "events"),
+                trace_id=_index_str(entry, "trace_id", "events"),
+                span_id=_index_str(entry, "span_id", "events"),
+                enrichment_span_ids=_index_str_list(entry, "enrichment_span_ids", "events"),
+            )
+        )
+    event_ids = [event.event_id for event in events]
+    session_ids = [session.session_id for session in sessions]
+    if len(set(event_ids)) != len(event_ids) or len(set(session_ids)) != len(session_ids):
+        raise IngestError(f"{path.name}: duplicate event or session ids in the span index")
+    return SpanIndex(schema_version=1, sessions=tuple(sessions), events=tuple(events))
 
 
 @dataclass(frozen=True, slots=True)
