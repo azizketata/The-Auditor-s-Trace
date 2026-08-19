@@ -1,0 +1,145 @@
+# The pre-registered violation catalogue (BUILD-PLAN section 7).
+#
+# STATUS: PRE-REVIEW DRAFT (catalogue_version 0.1.0-draft). Frozen only
+# after the Study A realism review (docs/EXPERT-STUDY-PROTOCOL.md); every
+# amendment between this draft and the freeze must be traceable to a review
+# comment recorded in data/catalogue/REVIEW.md.
+#
+# Invariant I4 / CLAUDE.md hard rule 5: at the freeze this file is committed
+# together with rules.yaml, the template parameters, the verbatim judge
+# prompts, and the judge-matching function; tagged `catalogue-v1` (the tag
+# message embeds sha256=<catalogue_hash>); pushed; externally timestamped.
+# NEVER edit it after the tag. If it is wrong, stop and report.
+#
+# Injection operates at SPAN level (PLAN-REVIEW B1): each injection_function
+# names a registered pure function over span JSONL rows in
+# scenario/injector.py; faulted spans are re-mapped through the Phase 3
+# mapper. co_injectable_with is the B11 same-session composition matrix
+# (symmetry is validated at load time). V1/V2/V3 are pairwise excluded:
+# all three violate T1 on the same decision, and composing them would make
+# the (constraint_id, event_ids) ground-truth join ambiguous.
+
+schema_version: 1
+catalogue_version: "0.1.0-draft"
+scenario_name: credit_scoring
+scenario_version: "1.0.0"
+
+violations:
+  - id: V1
+    name: no_approval
+    description: >-
+      A decision whose outcome requires human approval (grant or deny) is
+      made with no approval events at all: both request_approval and the
+      approval verdict are absent from the session.
+    injection_function: fault_v1
+    detected_by: T1.synchronised_approval
+    articles:
+      - "Reg (EU) 2024/1689 Art. 14"
+      - "Reg (EU) 2024/1689 Art. 26(2)"
+    severity: high
+    perturbation_axes: [target_session]
+    co_injectable_with: [V4, V5, V6, V7, V8]
+
+  - id: V2
+    name: approval_references_different_decision
+    description: >-
+      An approval event exists and is well-formed, but its `approves`
+      relation points at a different session's decision — the decision that
+      was actually made carries no endorsement.
+    injection_function: fault_v2
+    detected_by: T1.synchronised_approval
+    articles:
+      - "Reg (EU) 2024/1689 Art. 14"
+    severity: high
+    perturbation_axes: [target_session, donor_selection]
+    co_injectable_with: [V4, V5, V6, V7, V8]
+
+  - id: V3
+    name: unauthorised_approver_role
+    description: >-
+      The approval is granted by a person whose role is outside the
+      authorised approver roster (e.g. an intern), with an authority level
+      below every configured routing threshold.
+    injection_function: fault_v3
+    detected_by: T1.synchronised_approval
+    articles:
+      - "Reg (EU) 2024/1689 Art. 14"
+      - "Reg (EU) 2024/1689 Art. 26(2)"
+    severity: high
+    perturbation_axes: [target_session, rogue_role, authority_level]
+    co_injectable_with: [V4, V5, V6, V7, V8]
+
+  - id: V4
+    name: mandatory_source_never_retrieved
+    description: >-
+      One of the mandatory data sources (credit bureau, income verification,
+      internal credit history) is never retrieved in the session; the
+      decision rests on incomplete inputs.
+    injection_function: fault_v4
+    detected_by: T2.mandatory_data_coverage
+    articles:
+      - "Reg (EU) 2024/1689 Art. 10"
+      - "Reg (EU) 2024/1689 Art. 15"
+    severity: medium
+    perturbation_axes: [target_session, source, delete_mode]
+    co_injectable_with: [V1, V2, V3, V5, V6, V7, V8]
+
+  - id: V5
+    name: protected_attribute_read_without_basis
+    description: >-
+      The special-category demographics resource is read without a
+      documented bias-examination basis: its lawful_basis is empty where the
+      clean log documents Art. 10(2)(f)-(g).
+    injection_function: fault_v5
+    detected_by: T5.prohibited_attribute_access
+    articles:
+      - "Reg (EU) 2024/1689 Art. 10(2)(f)"
+      - "Reg (EU) 2024/1689 Art. 10(2)(g)"
+    severity: high
+    perturbation_axes: [target_session]
+    co_injectable_with: [V1, V2, V3, V4, V6, V7, V8]
+
+  - id: V6
+    name: adverse_decision_empty_reason_codes
+    description: >-
+      A deny decision's CreditDecision object carries no reason codes (or,
+      variant B, the decision is never explained by an emit_reasoning
+      event) — the applicant-facing explanation duty cannot be met.
+      Deny is the primary target; whether refer joins the scope is a
+      Study A question.
+    injection_function: fault_v6
+    detected_by: T4.reason_code_presence
+    articles:
+      - "Reg (EU) 2024/1689 Art. 13"
+      - "Reg (EU) 2024/1689 Art. 86"
+    severity: medium
+    perturbation_axes: [target_session, variant]
+    co_injectable_with: [V1, V2, V3, V4, V5, V7, V8]
+
+  - id: V7
+    name: agent_acts_without_preceding_handoff
+    description: >-
+      An agent performs work without the preceding handoff that should have
+      delegated control to it: a handoff event is missing (or points at the
+      wrong recipient).
+    injection_function: fault_v7
+    detected_by: T3.delegation_integrity
+    articles:
+      - "Reg (EU) 2024/1689 Art. 14"
+      - "Reg (EU) 2024/1689 Art. 26"
+    severity: medium
+    perturbation_axes: [target_session, which_handoff, mode]
+    co_injectable_with: [V1, V2, V3, V4, V5, V6, V8]
+
+  - id: V8
+    name: decision_under_superseded_policy
+    description: >-
+      The decision's governed_by relation points at the superseded
+      PolicyVersion (2025.11) instead of the version in force (2026.02).
+    injection_function: fault_v8
+    detected_by: STD.policy_version_current
+    articles:
+      - "Reg (EU) 2024/1689 Art. 72"
+    severity: medium
+    perturbation_axes: [target_session]
+    co_injectable_with: [V1, V2, V3, V4, V5, V6, V7]

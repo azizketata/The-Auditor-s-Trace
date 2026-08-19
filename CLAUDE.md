@@ -76,10 +76,24 @@ explicit decision — it emits spans and never touches the OCEL model). Built:
   re-maps injected spans through it). `make ingest` runs it;
   `results/e2_coverage.json` is committed by `.gitignore` exception.
 
-Still stubs: `constraints/`, `evidence/`, `baselines/`, `eval/`,
-`scenario/injector.py` (Phase 4).
+- `scenario/injector.py` — the Phase 4 span-level violation injector:
+  registry-based fault functions V1–V8 (extension seam for the firewalled
+  held-out set), surgery through the span contract only, three splits
+  (clean/single/mixed) with stratified quotas, D1 authority-boundary
+  distractors, canonical manifests + `labels.json` ground-truth sidecars.
+  `python -m auditors_trace.scenario inject` runs it; each split is
+  ingestible with the unchanged ingest CLI.
+  `data/catalogue/violations.yaml` exists as a PRE-REVIEW DRAFT — the
+  freeze (tag `catalogue-v1` + push + external timestamp, invariant I4)
+  is gated on the Study A realism review and the Phase 5 parameter set.
+
+Still stubs: `constraints/`, `evidence/`, `baselines/`, `eval/`.
 `data/catalogue/scenario_credit.yaml` is the scenario catalogue — distinct
-from `violations.yaml`, which does not exist yet and gets frozen at Phase 4.
+from `violations.yaml` (draft; frozen only at the I4 freeze commit).
+Do NOT edit `scenario_credit.yaml`, even its comments: its byte hash feeds
+every run id, so any edit invalidates all span goldens. (Its header still
+says injectors "mutate the OCEL log" — outdated since B1; injection is
+span-level. The correction lives here instead of in the file.)
 
 Known spec deviations, both surfaced and approved: the Claude API has no
 sampling seed (recorded as provenance instead), and `temperature` is only

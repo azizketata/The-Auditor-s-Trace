@@ -68,6 +68,42 @@ def build_parser() -> argparse.ArgumentParser:
     describe = sub.add_parser("describe", help="print the span contract and catalogue")
     describe.add_argument("--format", choices=("text", "json"), default="text")
 
+    inject = sub.add_parser(
+        "inject", help="inject catalogue violations into a base run (three splits)"
+    )
+    inject.add_argument(
+        "--spans",
+        type=Path,
+        default=Path("data") / "generated" / "spans",
+        help="base span directory (reads its manifest.json)",
+    )
+    inject.add_argument("--seed", type=int, required=True, help="injector seed")
+    inject.add_argument(
+        "--out",
+        type=Path,
+        default=Path("data") / "generated" / "splits",
+        help="output directory; one subdirectory per split",
+    )
+    inject.add_argument(
+        "--catalogue",
+        type=Path,
+        default=Path("data") / "catalogue" / "violations.yaml",
+        help="the pre-registered violation catalogue",
+    )
+    inject.add_argument(
+        "--sizes",
+        type=str,
+        default="clean=60,single=240,mixed=60",
+        help="comma-separated split sizes; must partition the run exactly",
+    )
+    inject.add_argument(
+        "--distractors",
+        type=int,
+        default=15,
+        help="near-miss distractor instances in the single split",
+    )
+    inject.add_argument("--quiet", action="store_true", help="suppress the summary lines")
+
     return parser
 
 
@@ -97,6 +133,63 @@ def _cmd_run(args: argparse.Namespace) -> int:
         print(f"error: {exc}", file=sys.stderr)
         return 3
     print(out / "manifest.json")
+    return 0
+
+
+def _cmd_inject(args: argparse.Namespace) -> int:
+    from auditors_trace.scenario.injector import (
+        InjectionError,
+        InjectionInputMissingError,
+        Split,
+        inject_run,
+        load_catalogue,
+    )
+
+    sizes: dict[Split, int] = {}
+    try:
+        for part in args.sizes.split(","):
+            name, _, raw = part.partition("=")
+            if name not in ("clean", "single", "mixed") or not raw.isdigit():
+                raise ValueError(f"bad --sizes fragment {part!r}")
+            sizes[name] = int(raw)
+    except ValueError as exc:
+        print(f"usage error: {exc}", file=sys.stderr)
+        return 2
+
+    try:
+        catalogue = load_catalogue(args.catalogue)
+        results = inject_run(
+            args.spans,
+            args.out,
+            args.seed,
+            catalogue,
+            sizes,
+            distractor_count=args.distractors,
+        )
+    except FileNotFoundError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 3
+    except SpanContractError as exc:
+        print(f"span contract violation: {exc}", file=sys.stderr)
+        return 4
+    except InjectionInputMissingError as exc:
+        # A distinct type, never message sniffing (Phase 3 review lesson).
+        print(f"error: {exc}", file=sys.stderr)
+        return 3
+    except InjectionError as exc:
+        print(f"injection error: {exc}", file=sys.stderr)
+        return 2
+    except (OSError, ValueError) as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 3
+
+    if not args.quiet:
+        for split, violations in results.items():
+            counts: dict[str, int] = {}
+            for violation in violations:
+                counts[violation.fault_class] = counts.get(violation.fault_class, 0) + 1
+            summary = " ".join(f"{k}={v}" for k, v in sorted(counts.items()))
+            print(f"{split}: {len(violations)} violations {summary}".rstrip())
     return 0
 
 
@@ -163,6 +256,8 @@ def main(argv: list[str] | None = None) -> int:
         return _cmd_seed(args)
     if args.command == "describe":
         return _cmd_describe(args)
+    if args.command == "inject":
+        return _cmd_inject(args)
     parser.error(f"unknown command {args.command!r}")
 
 

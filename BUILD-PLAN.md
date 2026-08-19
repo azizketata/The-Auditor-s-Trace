@@ -472,6 +472,17 @@ against the project's biggest risk.
 - `test_injected_violation_ids_are_recoverable_from_log`
 - `test_clean_split_contains_zero_injected_violations`
 - `test_catalogue_hash_matches_tag`
+- `test_composed_injections_have_consistent_ground_truth` *[B11]*
+
+*[C2 — amended 19 Aug 2026]* Violation ids are content-addressed **without**
+the mapped log's hash: `sha256` over `(fault_class, constraint_id,
+session_id, sorted ocel_event_ids, sorted removed_span_ids, base_run_id,
+injector_seed, violations_catalogue_sha256)`. This keeps the injector a pure
+single-pass span-level function (the B1 signature), removes any
+injector→mapper dependency, and means a mapper bugfix can never churn frozen
+label ids; the ground-truth join key for matching remains
+`(constraint_id, ocel_event_ids)`, which ride in `at.event.id` and are known
+at injection time. Recoverability from the mapped log is asserted by test.
 
 **DoD.** All pass, catalogue tagged, human review recorded in `data/catalogue/REVIEW.md`.
 
