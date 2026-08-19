@@ -85,9 +85,37 @@ explicit decision — it emits spans and never touches the OCEL model). Built:
   ingestible with the unchanged ingest CLI.
   `data/catalogue/violations.yaml` exists as a PRE-REVIEW DRAFT — the
   freeze (tag `catalogue-v1` + push + external timestamp, invariant I4)
-  is gated on the Study A realism review and the Phase 5 parameter set.
+  is gated on the Study A realism review; the Phase 5 parameter set now
+  exists (`rules/rules.yaml`).
 
-Still stubs: `constraints/`, `evidence/`, `baselines/`, `eval/`.
+- `constraints/` — the Phase 5 engine: `templates.py` (T1–T5, the shared
+  `Violation` contract every detection system emits, `LogIndex`),
+  `standard.py` (object-scoped DECLARE analogues; the attribute-predicated
+  `object_absence` carries `STD.policy_version_current`), `ruleset.py`
+  (pydantic schema; a rule without a legal article reference fails at load —
+  I3), `engine.py` (registry pinned 1:1 to `KNOWN_TEMPLATES`, canonical
+  violation order, `engine_version()`). `rules/rules.yaml` transcribes its
+  params from `scenario_credit.yaml` (drift-guarded by
+  tests/unit/test_rules_content.py) and is an I4 freeze-bundle item.
+  Verified: recall AND precision 1.0 on the full single split (240/240 exact
+  matches on `(constraint_id, event_ids)`), mixed fully matched, clean split
+  silent, 100-run determinism. Per B2 these are verification gates, never
+  reported results. `eval/metrics.py::confusion`/`precision_recall_f1` were
+  pulled forward from Phase 8 (I4 freezes the matching function); the
+  `matcher=` keyword is the seam the Phase 7 judge matcher plugs into.
+  T1's violation anchors are case-dependent (V1: decision; V2:
+  approval+decision; V3: approval only) and T3 guarantees one violation per
+  (session, orphaned agent) by excluding orphan-cited handoffs from its
+  cycle check — anchor changes here break the exact ground-truth join.
+
+Beware: `data/generated/ocel/*.jsonocel` are convenience artefacts that go
+stale when splits are regenerated — verification always re-maps from each
+split's `manifest.json` (sha256-verified). Re-running the ingest CLI also
+rewrites `results/e2_coverage.json`; that committed file belongs to the
+50-session `make ingest` base run — restore it if a splits ingest clobbers it.
+
+Still stubs: `evidence/`, `baselines/`, `eval/` (except the pulled-forward
+metrics above).
 `data/catalogue/scenario_credit.yaml` is the scenario catalogue — distinct
 from `violations.yaml` (draft; frozen only at the I4 freeze commit).
 Do NOT edit `scenario_credit.yaml`, even its comments: its byte hash feeds

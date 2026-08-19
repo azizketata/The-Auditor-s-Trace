@@ -522,6 +522,33 @@ Engine level:
 
 **DoD.** All pass. Recall on the `single` split must be 1.0; if it is not, the templates are wrong, not the metric.
 
+*Phase 5 amendments (19 Aug 2026, recorded at implementation):*
+
+1. *T5's `call_llm` arm is provably vacuous under the frozen section-5 qualifier
+   matrix — no `(call_llm, DataResource)` pair exists, and the OCEL model
+   rejects such a relation. Implemented defensively as specified and pinned by
+   `test_t5_call_llm_arm_is_vacuous_under_the_frozen_matrix`.*
+2. *`STD.policy_version_current` (V8) is realised as the attribute-predicated
+   form of `standard.py::object_absence` (`violating_when: non_empty` on
+   `PolicyVersion.effective_to`), anchored on `make_decision`'s `governed_by`
+   only — the pre-registered V8 evidence anchor; `session_start` governance is
+   out of scope by design.*
+3. *`eval/metrics.py::confusion` / `precision_recall_f1` and the default
+   `exact_match` predicate are pulled forward from Phase 8: invariant I4
+   freezes the ground-truth matching function with the catalogue, and the
+   recall gate needs the pinned predicate now. `confusion` takes a `matcher`
+   keyword (default `exact_match` — exact set equality on
+   `(constraint_id, event_ids)`); the judge's looser overlap matcher plugs
+   into the same seam in Phase 7/8 without touching the default.*
+4. *Injector fix surfaced by the recall gate: `fault_v2`'s eligibility gated on
+   `has_grant_approval` alone, so 11/30 V2 labels landed in grant-then-refer
+   sessions — ground truth the pre-registered T1 semantics deliberately cannot
+   flag (refer requires no approval; that exclusion is the catalogue's own
+   clean-split-safety rule). V2 now additionally requires outcome ∈
+   {grant, deny}, exactly like V1/V3; splits regenerated. This is precisely the
+   kind of injector/template coherence defect the pre-freeze recall
+   verification exists to catch (B2).*
+
 ---
 
 ### Phase 6 — Evidence renderer
