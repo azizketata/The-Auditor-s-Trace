@@ -13,7 +13,11 @@ import pytest
 
 @pytest.mark.parametrize(
     "module_name",
-    ["auditors_trace.cli", "auditors_trace.scenario.__main__"],
+    [
+        "auditors_trace.cli",
+        "auditors_trace.scenario.__main__",
+        "auditors_trace.ingest.__main__",
+    ],
 )
 def test_entrypoint_exposes_main(module_name: str) -> None:
     module = importlib.import_module(module_name)

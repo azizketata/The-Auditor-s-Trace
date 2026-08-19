@@ -1,0 +1,635 @@
+{
+  "objectTypes": [
+    {
+      "name": "Agent",
+      "attributes": [
+        {
+          "name": "agent_id",
+          "type": "string"
+        },
+        {
+          "name": "framework",
+          "type": "string"
+        },
+        {
+          "name": "name",
+          "type": "string"
+        },
+        {
+          "name": "role",
+          "type": "string"
+        },
+        {
+          "name": "version",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "name": "Applicant",
+      "attributes": [
+        {
+          "name": "applicant_id",
+          "type": "string"
+        },
+        {
+          "name": "jurisdiction",
+          "type": "string"
+        },
+        {
+          "name": "pseudonym_scheme",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "name": "Application",
+      "attributes": [
+        {
+          "name": "amount",
+          "type": "integer"
+        },
+        {
+          "name": "application_id",
+          "type": "string"
+        },
+        {
+          "name": "currency",
+          "type": "string"
+        },
+        {
+          "name": "product_type",
+          "type": "string"
+        },
+        {
+          "name": "purpose",
+          "type": "string"
+        },
+        {
+          "name": "submitted_at",
+          "type": "string"
+        },
+        {
+          "name": "term_months",
+          "type": "integer"
+        }
+      ]
+    },
+    {
+      "name": "Model",
+      "attributes": [
+        {
+          "name": "model_id",
+          "type": "string"
+        },
+        {
+          "name": "provider",
+          "type": "string"
+        },
+        {
+          "name": "version",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "name": "PolicyVersion",
+      "attributes": [
+        {
+          "name": "effective_from",
+          "type": "string"
+        },
+        {
+          "name": "effective_to",
+          "type": "string"
+        },
+        {
+          "name": "policy_id",
+          "type": "string"
+        },
+        {
+          "name": "version",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "name": "Prompt",
+      "attributes": [
+        {
+          "name": "prompt_name",
+          "type": "string"
+        },
+        {
+          "name": "prompt_version",
+          "type": "string"
+        },
+        {
+          "name": "template_hash",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "name": "Session",
+      "attributes": [
+        {
+          "name": "session_id",
+          "type": "string"
+        },
+        {
+          "name": "workflow_name",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "name": "Tool",
+      "attributes": [
+        {
+          "name": "tool_name",
+          "type": "string"
+        },
+        {
+          "name": "tool_type",
+          "type": "string"
+        }
+      ]
+    }
+  ],
+  "eventTypes": [
+    {
+      "name": "call_llm",
+      "attributes": [
+        {
+          "name": "max_tokens",
+          "type": "integer"
+        },
+        {
+          "name": "model_seed",
+          "type": "integer"
+        },
+        {
+          "name": "purpose",
+          "type": "string"
+        },
+        {
+          "name": "temperature",
+          "type": "float"
+        }
+      ]
+    },
+    {
+      "name": "call_tool",
+      "attributes": [
+        {
+          "name": "status",
+          "type": "string"
+        },
+        {
+          "name": "tool_call_id",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "name": "invoke_agent",
+      "attributes": [
+        {
+          "name": "agent_role",
+          "type": "string"
+        },
+        {
+          "name": "step_index",
+          "type": "integer"
+        }
+      ]
+    },
+    {
+      "name": "session_end",
+      "attributes": [
+        {
+          "name": "duration_seconds",
+          "type": "integer"
+        },
+        {
+          "name": "event_count",
+          "type": "integer"
+        },
+        {
+          "name": "outcome",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "name": "session_start",
+      "attributes": [
+        {
+          "name": "contract",
+          "type": "string"
+        },
+        {
+          "name": "run_id",
+          "type": "string"
+        },
+        {
+          "name": "scenario_name",
+          "type": "string"
+        },
+        {
+          "name": "scenario_version",
+          "type": "string"
+        },
+        {
+          "name": "seed",
+          "type": "integer"
+        }
+      ]
+    }
+  ],
+  "objects": [
+    {
+      "id": "AGT-PAIR",
+      "type": "Agent",
+      "attributes": [
+        {
+          "name": "agent_id",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "AGT-PAIR"
+        },
+        {
+          "name": "framework",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "langgraph"
+        },
+        {
+          "name": "name",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "intake"
+        },
+        {
+          "name": "role",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "intake"
+        },
+        {
+          "name": "version",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "1.0.0"
+        }
+      ]
+    },
+    {
+      "id": "APN-PAIR",
+      "type": "Applicant",
+      "attributes": [
+        {
+          "name": "applicant_id",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "APN-PAIR"
+        },
+        {
+          "name": "jurisdiction",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "DE"
+        },
+        {
+          "name": "pseudonym_scheme",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "sha256/seeded"
+        }
+      ]
+    },
+    {
+      "id": "APP-PAIR",
+      "type": "Application",
+      "attributes": [
+        {
+          "name": "amount",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "2500"
+        },
+        {
+          "name": "application_id",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "APP-PAIR"
+        },
+        {
+          "name": "currency",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "DEM"
+        },
+        {
+          "name": "product_type",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "consumer_loan"
+        },
+        {
+          "name": "purpose",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "radio_tv"
+        },
+        {
+          "name": "submitted_at",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "2026-03-02T08:55:00Z"
+        },
+        {
+          "name": "term_months",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "12"
+        }
+      ],
+      "relationships": [
+        {
+          "objectId": "APN-PAIR",
+          "qualifier": "submitted_by"
+        }
+      ]
+    },
+    {
+      "id": "MDL-PAIR",
+      "type": "Model",
+      "attributes": [
+        {
+          "name": "model_id",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "scripted-credit-policy-v1"
+        },
+        {
+          "name": "provider",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "scripted"
+        },
+        {
+          "name": "version",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "1"
+        }
+      ]
+    },
+    {
+      "id": "POL-PAIR-2026.02",
+      "type": "PolicyVersion",
+      "attributes": [
+        {
+          "name": "effective_from",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "2026-02-01T00:00:00Z"
+        },
+        {
+          "name": "effective_to",
+          "time": "1970-01-01T00:00:00Z",
+          "value": ""
+        },
+        {
+          "name": "policy_id",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "POL-PAIR"
+        },
+        {
+          "name": "version",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "2026.02"
+        }
+      ]
+    },
+    {
+      "id": "PRM-PAIR",
+      "type": "Prompt",
+      "attributes": [
+        {
+          "name": "prompt_name",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "intake_summary"
+        },
+        {
+          "name": "prompt_version",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "3"
+        },
+        {
+          "name": "template_hash",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "a3f1c9d2e8b74650"
+        }
+      ]
+    },
+    {
+      "id": "SESS-PAIR",
+      "type": "Session",
+      "attributes": [
+        {
+          "name": "session_id",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "SESS-PAIR"
+        },
+        {
+          "name": "workflow_name",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "credit_application"
+        }
+      ]
+    },
+    {
+      "id": "TL-PAIR",
+      "type": "Tool",
+      "attributes": [
+        {
+          "name": "tool_name",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "scorecard"
+        },
+        {
+          "name": "tool_type",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "deterministic_function"
+        }
+      ]
+    }
+  ],
+  "events": [
+    {
+      "id": "EVT-SESS-PAIR-001-session_start",
+      "type": "session_start",
+      "time": "2026-03-02T09:00:01Z",
+      "attributes": [
+        {
+          "name": "contract",
+          "value": "at-span/1"
+        },
+        {
+          "name": "run_id",
+          "value": "pairedfixture001"
+        },
+        {
+          "name": "scenario_name",
+          "value": "credit_scoring"
+        },
+        {
+          "name": "scenario_version",
+          "value": "1.0.0"
+        },
+        {
+          "name": "seed",
+          "value": "42"
+        }
+      ],
+      "relationships": [
+        {
+          "objectId": "APN-PAIR",
+          "qualifier": "concerns"
+        },
+        {
+          "objectId": "APP-PAIR",
+          "qualifier": "concerns"
+        },
+        {
+          "objectId": "POL-PAIR-2026.02",
+          "qualifier": "governed_by"
+        },
+        {
+          "objectId": "SESS-PAIR",
+          "qualifier": "within"
+        }
+      ]
+    },
+    {
+      "id": "EVT-SESS-PAIR-002-invoke_agent",
+      "type": "invoke_agent",
+      "time": "2026-03-02T09:00:02Z",
+      "attributes": [
+        {
+          "name": "agent_role",
+          "value": "intake"
+        },
+        {
+          "name": "step_index",
+          "value": "1"
+        }
+      ],
+      "relationships": [
+        {
+          "objectId": "AGT-PAIR",
+          "qualifier": "performed_by"
+        },
+        {
+          "objectId": "APP-PAIR",
+          "qualifier": "concerns"
+        },
+        {
+          "objectId": "SESS-PAIR",
+          "qualifier": "within"
+        }
+      ]
+    },
+    {
+      "id": "EVT-SESS-PAIR-003-call_llm",
+      "type": "call_llm",
+      "time": "2026-03-02T09:00:03Z",
+      "attributes": [
+        {
+          "name": "max_tokens",
+          "value": "512"
+        },
+        {
+          "name": "model_seed",
+          "value": "42"
+        },
+        {
+          "name": "purpose",
+          "value": "intake_summary"
+        },
+        {
+          "name": "temperature",
+          "value": "0.0"
+        }
+      ],
+      "relationships": [
+        {
+          "objectId": "AGT-PAIR",
+          "qualifier": "performed_by"
+        },
+        {
+          "objectId": "APP-PAIR",
+          "qualifier": "concerns"
+        },
+        {
+          "objectId": "MDL-PAIR",
+          "qualifier": "uses"
+        },
+        {
+          "objectId": "PRM-PAIR",
+          "qualifier": "uses"
+        },
+        {
+          "objectId": "SESS-PAIR",
+          "qualifier": "within"
+        }
+      ]
+    },
+    {
+      "id": "EVT-SESS-PAIR-004-call_tool",
+      "type": "call_tool",
+      "time": "2026-03-02T09:00:04Z",
+      "attributes": [
+        {
+          "name": "status",
+          "value": "ok"
+        },
+        {
+          "name": "tool_call_id",
+          "value": "TC-PAIR-1"
+        }
+      ],
+      "relationships": [
+        {
+          "objectId": "AGT-PAIR",
+          "qualifier": "performed_by"
+        },
+        {
+          "objectId": "APP-PAIR",
+          "qualifier": "concerns"
+        },
+        {
+          "objectId": "SESS-PAIR",
+          "qualifier": "within"
+        },
+        {
+          "objectId": "TL-PAIR",
+          "qualifier": "uses"
+        }
+      ]
+    },
+    {
+      "id": "EVT-SESS-PAIR-005-session_end",
+      "type": "session_end",
+      "time": "2026-03-02T09:00:05Z",
+      "attributes": [
+        {
+          "name": "duration_seconds",
+          "value": "4"
+        },
+        {
+          "name": "event_count",
+          "value": "5"
+        },
+        {
+          "name": "outcome",
+          "value": "grant"
+        }
+      ],
+      "relationships": [
+        {
+          "objectId": "APP-PAIR",
+          "qualifier": "concerns"
+        },
+        {
+          "objectId": "SESS-PAIR",
+          "qualifier": "within"
+        }
+      ]
+    }
+  ]
+}

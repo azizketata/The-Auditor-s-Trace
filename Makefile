@@ -32,9 +32,10 @@ PROVIDER ?= scripted
 scenario:
 	$(UV) python -m auditors_trace.scenario run --n 50 --seed 42 --provider $(PROVIDER)
 
-## ingest: spans -> OCEL
+## ingest: spans -> OCEL (+ C2 coverage report + span index). Consumes what
+## `make scenario` wrote; defaults live in the ingest CLI.
 ingest:
-	$(error make ingest requires Phase 3 -- the span to OCEL mapper. See BUILD-PLAN.md section 9)
+	$(UV) python -m auditors_trace.ingest run
 
 ## evaluate: run all systems, compute metrics
 evaluate:

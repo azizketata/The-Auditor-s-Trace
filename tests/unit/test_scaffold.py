@@ -29,6 +29,7 @@ EXPECTED_MODULES = {
     "auditors_trace.evidence.crosswalk",
     "auditors_trace.evidence.record",
     "auditors_trace.evidence.renderer",
+    "auditors_trace.ingest.__main__",
     "auditors_trace.ingest.attribute_map",
     "auditors_trace.ingest.mapper",
     "auditors_trace.ingest.otel_reader",

@@ -47,8 +47,8 @@ deliberate — see hard rule 5 above and BUILD-PLAN.md section 0 rule 6.
 
 ## Current state
 
-Phases 0, 1, and 2 complete (Phase 2 was pulled ahead of Phase 1 by explicit
-decision — it emits spans and never touches the OCEL model). Built:
+Phases 0, 1, 2, and 3 complete (Phase 2 was pulled ahead of Phase 1 by
+explicit decision — it emits spans and never touches the OCEL model). Built:
 
 - `model/span_contract.py` — the `at.*` governance span vocabulary
   (`at-span/1`), THE contract between the scenario (writer) and Phase 3's
@@ -67,9 +67,17 @@ decision — it emits spans and never touches the OCEL model). Built:
   `log_hash` the CI matrix asserts on Windows and Ubuntu.
 - `scenario/` — the four-agent LangGraph fleet. 28 events/session, all 13
   event types, all 12 object types. `make scenario` runs it scripted.
+- `ingest/` — the Phase 3 mapper: `otel_reader.py` (strict manifest-verified
+  reader + span trees), `attribute_map.py` (canonical vocabulary folding
+  both `gen_ai.*` and `llm.*`, C2 coverage report), `mapper.py` (two-pass
+  per-trace mapping, cross-session object merge, `declares` synthesis, and
+  the span-index sidecar §8 evidence records cite), `__main__.py` (exit
+  codes 0/2/3/4/6/7). A pure function of span-file content (B1 — Phase 4
+  re-maps injected spans through it). `make ingest` runs it;
+  `results/e2_coverage.json` is committed by `.gitignore` exception.
 
-Still stubs: `ingest/` (Phase 3), `constraints/`, `evidence/`,
-`baselines/`, `eval/`, `scenario/injector.py` (Phase 4).
+Still stubs: `constraints/`, `evidence/`, `baselines/`, `eval/`,
+`scenario/injector.py` (Phase 4).
 `data/catalogue/scenario_credit.yaml` is the scenario catalogue — distinct
 from `violations.yaml`, which does not exist yet and gets frozen at Phase 4.
 

@@ -10,6 +10,8 @@ Committed so Phase 3 is testable without the `scenario` extra installed.
 | `credit_deny_approval_refer_seed2.jsonl` | One full session: the human override path — deny_approval followed by a refer decision. Same command with `--seed 2`. |
 | `*.manifest.json` | The run manifests for the two sessions above. |
 | `messy_vendor_variants.jsonl` | Hand-authored. A gen_ai-only span, an OpenInference span missing `llm.invocation_parameters`, a span with renamed vendor keys, a valid minimal layer-A event, one **deliberately malformed** layer-A event (`at.obj.count` mismatch — the reader must raise `SpanContractError`, never drop), and a session root. Lines are intentionally *not* in creation order. |
+| `paired_vocabulary_genai.jsonl` | Added in Phase 3. Hand-authored minimal session (`SESS-PAIR`, 5 events); its two layer-B spans speak **only** `gen_ai.*`. |
+| `paired_vocabulary_openinference.jsonl` | Added in Phase 3. Byte-identical to the file above **except** the two layer-B spans, which speak only `openinference.*`/`llm.*`/`tool.*`. Both files must map to the identical OCEL log, coverage, and span index (`test_both_vocabularies_map_to_same_ocel`). |
 
 Regeneration note: rerunning the generator commands reproduces every byte
 except span wall-clock nanoseconds and the LangGraph `checkpoint_ns` UUIDs in

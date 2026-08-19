@@ -1,0 +1,2189 @@
+{
+  "objectTypes": [
+    {
+      "name": "Agent",
+      "attributes": [
+        {
+          "name": "agent_id",
+          "type": "string"
+        },
+        {
+          "name": "framework",
+          "type": "string"
+        },
+        {
+          "name": "name",
+          "type": "string"
+        },
+        {
+          "name": "role",
+          "type": "string"
+        },
+        {
+          "name": "version",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "name": "Applicant",
+      "attributes": [
+        {
+          "name": "applicant_id",
+          "type": "string"
+        },
+        {
+          "name": "jurisdiction",
+          "type": "string"
+        },
+        {
+          "name": "pseudonym_scheme",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "name": "Application",
+      "attributes": [
+        {
+          "name": "amount",
+          "type": "integer"
+        },
+        {
+          "name": "application_id",
+          "type": "string"
+        },
+        {
+          "name": "currency",
+          "type": "string"
+        },
+        {
+          "name": "product_type",
+          "type": "string"
+        },
+        {
+          "name": "purpose",
+          "type": "string"
+        },
+        {
+          "name": "submitted_at",
+          "type": "string"
+        },
+        {
+          "name": "term_months",
+          "type": "integer"
+        }
+      ]
+    },
+    {
+      "name": "Approval",
+      "attributes": [
+        {
+          "name": "approval_id",
+          "type": "string"
+        },
+        {
+          "name": "approver_role",
+          "type": "string"
+        },
+        {
+          "name": "decided_at",
+          "type": "string"
+        },
+        {
+          "name": "granted",
+          "type": "boolean"
+        }
+      ]
+    },
+    {
+      "name": "CreditDecision",
+      "attributes": [
+        {
+          "name": "band",
+          "type": "string"
+        },
+        {
+          "name": "decided_at",
+          "type": "string"
+        },
+        {
+          "name": "decision_id",
+          "type": "string"
+        },
+        {
+          "name": "outcome",
+          "type": "string"
+        },
+        {
+          "name": "reason_codes",
+          "type": "string"
+        },
+        {
+          "name": "score",
+          "type": "integer"
+        }
+      ]
+    },
+    {
+      "name": "DataResource",
+      "attributes": [
+        {
+          "name": "classification",
+          "type": "string"
+        },
+        {
+          "name": "controller",
+          "type": "string"
+        },
+        {
+          "name": "lawful_basis",
+          "type": "string"
+        },
+        {
+          "name": "resource_id",
+          "type": "string"
+        },
+        {
+          "name": "resource_type",
+          "type": "string"
+        },
+        {
+          "name": "retention_class",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "name": "HumanApprover",
+      "attributes": [
+        {
+          "name": "approver_id",
+          "type": "string"
+        },
+        {
+          "name": "authority_level",
+          "type": "integer"
+        },
+        {
+          "name": "role",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "name": "Model",
+      "attributes": [
+        {
+          "name": "model_id",
+          "type": "string"
+        },
+        {
+          "name": "provider",
+          "type": "string"
+        },
+        {
+          "name": "version",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "name": "PolicyVersion",
+      "attributes": [
+        {
+          "name": "effective_from",
+          "type": "string"
+        },
+        {
+          "name": "effective_to",
+          "type": "string"
+        },
+        {
+          "name": "policy_id",
+          "type": "string"
+        },
+        {
+          "name": "version",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "name": "Prompt",
+      "attributes": [
+        {
+          "name": "prompt_name",
+          "type": "string"
+        },
+        {
+          "name": "prompt_version",
+          "type": "string"
+        },
+        {
+          "name": "template_hash",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "name": "Session",
+      "attributes": [
+        {
+          "name": "session_id",
+          "type": "string"
+        },
+        {
+          "name": "workflow_name",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "name": "Tool",
+      "attributes": [
+        {
+          "name": "tool_name",
+          "type": "string"
+        },
+        {
+          "name": "tool_type",
+          "type": "string"
+        }
+      ]
+    }
+  ],
+  "eventTypes": [
+    {
+      "name": "call_llm",
+      "attributes": [
+        {
+          "name": "max_tokens",
+          "type": "integer"
+        },
+        {
+          "name": "model_seed",
+          "type": "integer"
+        },
+        {
+          "name": "purpose",
+          "type": "string"
+        },
+        {
+          "name": "temperature",
+          "type": "float"
+        }
+      ]
+    },
+    {
+      "name": "call_tool",
+      "attributes": [
+        {
+          "name": "status",
+          "type": "string"
+        },
+        {
+          "name": "tool_call_id",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "name": "emit_reasoning",
+      "attributes": [
+        {
+          "name": "reason_codes",
+          "type": "string"
+        },
+        {
+          "name": "reasoning_kind",
+          "type": "string"
+        },
+        {
+          "name": "text_hash",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "name": "grant_approval",
+      "attributes": [
+        {
+          "name": "approver_role",
+          "type": "string"
+        },
+        {
+          "name": "authority_level",
+          "type": "integer"
+        },
+        {
+          "name": "rationale_hash",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "name": "handoff",
+      "attributes": [
+        {
+          "name": "handoff_kind",
+          "type": "string"
+        },
+        {
+          "name": "reason",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "name": "invoke_agent",
+      "attributes": [
+        {
+          "name": "agent_role",
+          "type": "string"
+        },
+        {
+          "name": "step_index",
+          "type": "integer"
+        }
+      ]
+    },
+    {
+      "name": "make_decision",
+      "attributes": [
+        {
+          "name": "adverse",
+          "type": "boolean"
+        },
+        {
+          "name": "outcome",
+          "type": "string"
+        },
+        {
+          "name": "reason_codes",
+          "type": "string"
+        },
+        {
+          "name": "score",
+          "type": "integer"
+        }
+      ]
+    },
+    {
+      "name": "notify_applicant",
+      "attributes": [
+        {
+          "name": "adverse_action_notice",
+          "type": "boolean"
+        },
+        {
+          "name": "channel",
+          "type": "string"
+        },
+        {
+          "name": "contains_reason_codes",
+          "type": "boolean"
+        }
+      ]
+    },
+    {
+      "name": "request_approval",
+      "attributes": [
+        {
+          "name": "amount_dm",
+          "type": "integer"
+        },
+        {
+          "name": "proposed_outcome",
+          "type": "string"
+        },
+        {
+          "name": "proposed_score",
+          "type": "integer"
+        },
+        {
+          "name": "required_role",
+          "type": "string"
+        },
+        {
+          "name": "sla_seconds",
+          "type": "integer"
+        }
+      ]
+    },
+    {
+      "name": "retrieve_data",
+      "attributes": [
+        {
+          "name": "purpose",
+          "type": "string"
+        },
+        {
+          "name": "record_count",
+          "type": "integer"
+        },
+        {
+          "name": "resource_type",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "name": "session_end",
+      "attributes": [
+        {
+          "name": "duration_seconds",
+          "type": "integer"
+        },
+        {
+          "name": "event_count",
+          "type": "integer"
+        },
+        {
+          "name": "outcome",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "name": "session_start",
+      "attributes": [
+        {
+          "name": "contract",
+          "type": "string"
+        },
+        {
+          "name": "run_id",
+          "type": "string"
+        },
+        {
+          "name": "scenario_name",
+          "type": "string"
+        },
+        {
+          "name": "scenario_version",
+          "type": "string"
+        },
+        {
+          "name": "seed",
+          "type": "integer"
+        }
+      ]
+    }
+  ],
+  "objects": [
+    {
+      "id": "AGT-ADJUDICATION",
+      "type": "Agent",
+      "attributes": [
+        {
+          "name": "agent_id",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "AGT-ADJUDICATION"
+        },
+        {
+          "name": "framework",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "langgraph/1.2.11"
+        },
+        {
+          "name": "name",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "Adjudication Agent"
+        },
+        {
+          "name": "role",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "adjudication"
+        },
+        {
+          "name": "version",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "1.0.0"
+        }
+      ]
+    },
+    {
+      "id": "AGT-INTAKE",
+      "type": "Agent",
+      "attributes": [
+        {
+          "name": "agent_id",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "AGT-INTAKE"
+        },
+        {
+          "name": "framework",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "langgraph/1.2.11"
+        },
+        {
+          "name": "name",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "Intake Agent"
+        },
+        {
+          "name": "role",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "intake"
+        },
+        {
+          "name": "version",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "1.0.0"
+        }
+      ],
+      "relationships": [
+        {
+          "objectId": "AGT-RETRIEVAL",
+          "qualifier": "delegates_to"
+        }
+      ]
+    },
+    {
+      "id": "AGT-RETRIEVAL",
+      "type": "Agent",
+      "attributes": [
+        {
+          "name": "agent_id",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "AGT-RETRIEVAL"
+        },
+        {
+          "name": "framework",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "langgraph/1.2.11"
+        },
+        {
+          "name": "name",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "Data Retrieval Agent"
+        },
+        {
+          "name": "role",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "data_retrieval"
+        },
+        {
+          "name": "version",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "1.0.0"
+        }
+      ],
+      "relationships": [
+        {
+          "objectId": "AGT-SCORING",
+          "qualifier": "delegates_to"
+        }
+      ]
+    },
+    {
+      "id": "AGT-SCORING",
+      "type": "Agent",
+      "attributes": [
+        {
+          "name": "agent_id",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "AGT-SCORING"
+        },
+        {
+          "name": "framework",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "langgraph/1.2.11"
+        },
+        {
+          "name": "name",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "Scoring Agent"
+        },
+        {
+          "name": "role",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "scoring"
+        },
+        {
+          "name": "version",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "1.0.0"
+        }
+      ],
+      "relationships": [
+        {
+          "objectId": "AGT-ADJUDICATION",
+          "qualifier": "delegates_to"
+        }
+      ]
+    },
+    {
+      "id": "APN-d1081c16f1",
+      "type": "Applicant",
+      "attributes": [
+        {
+          "name": "applicant_id",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "APN-d1081c16f1"
+        },
+        {
+          "name": "jurisdiction",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "DE"
+        },
+        {
+          "name": "pseudonym_scheme",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "sha256/seeded"
+        }
+      ]
+    },
+    {
+      "id": "APP-bc438fbf25",
+      "type": "Application",
+      "attributes": [
+        {
+          "name": "amount",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "5951"
+        },
+        {
+          "name": "application_id",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "APP-bc438fbf25"
+        },
+        {
+          "name": "currency",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "DEM"
+        },
+        {
+          "name": "product_type",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "consumer_credit"
+        },
+        {
+          "name": "purpose",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "radio_television"
+        },
+        {
+          "name": "submitted_at",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "2026-03-02T09:00:01Z"
+        },
+        {
+          "name": "term_months",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "48"
+        }
+      ],
+      "relationships": [
+        {
+          "objectId": "APN-d1081c16f1",
+          "qualifier": "submitted_by"
+        }
+      ]
+    },
+    {
+      "id": "APRV-SESS-0000",
+      "type": "Approval",
+      "attributes": [
+        {
+          "name": "approval_id",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "APRV-SESS-0000"
+        },
+        {
+          "name": "approver_role",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "senior_underwriter"
+        },
+        {
+          "name": "decided_at",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "2026-03-02T09:02:42Z"
+        },
+        {
+          "name": "granted",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "id": "DEC-APP-bc438fbf25",
+      "type": "CreditDecision",
+      "attributes": [
+        {
+          "name": "band",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "subprime"
+        },
+        {
+          "name": "decided_at",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "2026-03-02T09:02:44Z"
+        },
+        {
+          "name": "decision_id",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "DEC-APP-bc438fbf25"
+        },
+        {
+          "name": "outcome",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "deny"
+        },
+        {
+          "name": "reason_codes",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "[\"RC01\",\"RC03\",\"RC07\"]"
+        },
+        {
+          "name": "score",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "454"
+        }
+      ],
+      "relationships": [
+        {
+          "objectId": "APP-bc438fbf25",
+          "qualifier": "derived_from"
+        }
+      ]
+    },
+    {
+      "id": "RES-CREDIT-BUREAU",
+      "type": "DataResource",
+      "attributes": [
+        {
+          "name": "classification",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "internal"
+        },
+        {
+          "name": "controller",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "External Credit Bureau AG"
+        },
+        {
+          "name": "lawful_basis",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "GDPR Art. 6(1)(b) — processing necessary for pre-contractual steps"
+        },
+        {
+          "name": "resource_id",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "RES-CREDIT-BUREAU"
+        },
+        {
+          "name": "resource_type",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "credit_bureau"
+        },
+        {
+          "name": "retention_class",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "fsi_records_6y"
+        }
+      ]
+    },
+    {
+      "id": "RES-DEMOGRAPHICS",
+      "type": "DataResource",
+      "attributes": [
+        {
+          "name": "classification",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "special_category"
+        },
+        {
+          "name": "controller",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "The Bank"
+        },
+        {
+          "name": "lawful_basis",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "AI Act Art. 10(2)(f)-(g) — examination for possible biases and appropriate detection/prevention/mitigation measures; record-keeping by analogy to Art. 10(5)(f) applied as a voluntary safeguard (attributes are protected grounds, not GDPR Art. 9 special categories)."
+        },
+        {
+          "name": "resource_id",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "RES-DEMOGRAPHICS"
+        },
+        {
+          "name": "resource_type",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "applicant_demographics"
+        },
+        {
+          "name": "retention_class",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "ai_act_art_10_2_bias_examination"
+        }
+      ]
+    },
+    {
+      "id": "RES-INCOME",
+      "type": "DataResource",
+      "attributes": [
+        {
+          "name": "classification",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "internal"
+        },
+        {
+          "name": "controller",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "The Bank"
+        },
+        {
+          "name": "lawful_basis",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "GDPR Art. 6(1)(b) — processing necessary for pre-contractual steps"
+        },
+        {
+          "name": "resource_id",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "RES-INCOME"
+        },
+        {
+          "name": "resource_type",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "income_verification"
+        },
+        {
+          "name": "retention_class",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "fsi_records_6y"
+        }
+      ]
+    },
+    {
+      "id": "RES-INTERNAL-HISTORY",
+      "type": "DataResource",
+      "attributes": [
+        {
+          "name": "classification",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "internal"
+        },
+        {
+          "name": "controller",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "The Bank"
+        },
+        {
+          "name": "lawful_basis",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "GDPR Art. 6(1)(b) — processing necessary for pre-contractual steps"
+        },
+        {
+          "name": "resource_id",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "RES-INTERNAL-HISTORY"
+        },
+        {
+          "name": "resource_type",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "internal_credit_history"
+        },
+        {
+          "name": "retention_class",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "fsi_records_6y"
+        }
+      ]
+    },
+    {
+      "id": "APR-002",
+      "type": "HumanApprover",
+      "attributes": [
+        {
+          "name": "approver_id",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "APR-002"
+        },
+        {
+          "name": "authority_level",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "2"
+        },
+        {
+          "name": "role",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "senior_underwriter"
+        }
+      ]
+    },
+    {
+      "id": "scripted-credit-policy-v1",
+      "type": "Model",
+      "attributes": [
+        {
+          "name": "model_id",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "scripted-credit-policy-v1"
+        },
+        {
+          "name": "provider",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "scripted"
+        },
+        {
+          "name": "version",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "1.0.0"
+        }
+      ]
+    },
+    {
+      "id": "POL-CREDIT-2025.11",
+      "type": "PolicyVersion",
+      "attributes": [
+        {
+          "name": "effective_from",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "2025-11-01T00:00:00Z"
+        },
+        {
+          "name": "effective_to",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "2026-01-31T23:59:59Z"
+        },
+        {
+          "name": "policy_id",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "POL-CREDIT"
+        },
+        {
+          "name": "version",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "2025.11"
+        }
+      ]
+    },
+    {
+      "id": "POL-CREDIT-2026.02",
+      "type": "PolicyVersion",
+      "attributes": [
+        {
+          "name": "effective_from",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "2026-02-01T00:00:00Z"
+        },
+        {
+          "name": "effective_to",
+          "time": "1970-01-01T00:00:00Z",
+          "value": ""
+        },
+        {
+          "name": "policy_id",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "POL-CREDIT"
+        },
+        {
+          "name": "version",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "2026.02"
+        }
+      ]
+    },
+    {
+      "id": "PRM-adverse_action-v1",
+      "type": "Prompt",
+      "attributes": [
+        {
+          "name": "prompt_name",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "adverse_action"
+        },
+        {
+          "name": "prompt_version",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "1"
+        },
+        {
+          "name": "template_hash",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "8f29b0ab612cbff1"
+        }
+      ]
+    },
+    {
+      "id": "PRM-intake_summary-v1",
+      "type": "Prompt",
+      "attributes": [
+        {
+          "name": "prompt_name",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "intake_summary"
+        },
+        {
+          "name": "prompt_version",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "1"
+        },
+        {
+          "name": "template_hash",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "5e4dc9d88e1b5fb7"
+        }
+      ]
+    },
+    {
+      "id": "PRM-score_rationale-v1",
+      "type": "Prompt",
+      "attributes": [
+        {
+          "name": "prompt_name",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "score_rationale"
+        },
+        {
+          "name": "prompt_version",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "1"
+        },
+        {
+          "name": "template_hash",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "9042800d4e942b76"
+        }
+      ]
+    },
+    {
+      "id": "SESS-0000",
+      "type": "Session",
+      "attributes": [
+        {
+          "name": "session_id",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "SESS-0000"
+        },
+        {
+          "name": "workflow_name",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "credit_application"
+        }
+      ]
+    },
+    {
+      "id": "TOOL-credit_bureau_lookup",
+      "type": "Tool",
+      "attributes": [
+        {
+          "name": "tool_name",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "credit_bureau_lookup"
+        },
+        {
+          "name": "tool_type",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "data_retrieval"
+        }
+      ]
+    },
+    {
+      "id": "TOOL-demographic_bias_monitor",
+      "type": "Tool",
+      "attributes": [
+        {
+          "name": "tool_name",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "demographic_bias_monitor"
+        },
+        {
+          "name": "tool_type",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "bias_monitoring"
+        }
+      ]
+    },
+    {
+      "id": "TOOL-income_verification",
+      "type": "Tool",
+      "attributes": [
+        {
+          "name": "tool_name",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "income_verification"
+        },
+        {
+          "name": "tool_type",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "data_retrieval"
+        }
+      ]
+    },
+    {
+      "id": "TOOL-internal_credit_history",
+      "type": "Tool",
+      "attributes": [
+        {
+          "name": "tool_name",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "internal_credit_history"
+        },
+        {
+          "name": "tool_type",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "data_retrieval"
+        }
+      ]
+    },
+    {
+      "id": "TOOL-risk_scorecard",
+      "type": "Tool",
+      "attributes": [
+        {
+          "name": "tool_name",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "risk_scorecard"
+        },
+        {
+          "name": "tool_type",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "scoring"
+        }
+      ]
+    }
+  ],
+  "events": [
+    {
+      "id": "EVT-SESS-0000-001-session_start",
+      "type": "session_start",
+      "time": "2026-03-02T09:00:01Z",
+      "attributes": [
+        {
+          "name": "contract",
+          "value": "at-span/1"
+        },
+        {
+          "name": "run_id",
+          "value": "62f8213606262bbe"
+        },
+        {
+          "name": "scenario_name",
+          "value": "credit_scoring"
+        },
+        {
+          "name": "scenario_version",
+          "value": "1.0.0"
+        },
+        {
+          "name": "seed",
+          "value": "42"
+        }
+      ],
+      "relationships": [
+        {
+          "objectId": "APN-d1081c16f1",
+          "qualifier": "concerns"
+        },
+        {
+          "objectId": "APP-bc438fbf25",
+          "qualifier": "concerns"
+        },
+        {
+          "objectId": "POL-CREDIT-2025.11",
+          "qualifier": "declares"
+        },
+        {
+          "objectId": "POL-CREDIT-2026.02",
+          "qualifier": "governed_by"
+        },
+        {
+          "objectId": "SESS-0000",
+          "qualifier": "within"
+        }
+      ]
+    },
+    {
+      "id": "EVT-SESS-0000-002-invoke_agent",
+      "type": "invoke_agent",
+      "time": "2026-03-02T09:00:02Z",
+      "attributes": [
+        {
+          "name": "agent_role",
+          "value": "intake"
+        },
+        {
+          "name": "step_index",
+          "value": "1"
+        }
+      ],
+      "relationships": [
+        {
+          "objectId": "AGT-INTAKE",
+          "qualifier": "performed_by"
+        },
+        {
+          "objectId": "APP-bc438fbf25",
+          "qualifier": "concerns"
+        },
+        {
+          "objectId": "SESS-0000",
+          "qualifier": "within"
+        }
+      ]
+    },
+    {
+      "id": "EVT-SESS-0000-003-call_llm",
+      "type": "call_llm",
+      "time": "2026-03-02T09:00:05Z",
+      "attributes": [
+        {
+          "name": "max_tokens",
+          "value": "512"
+        },
+        {
+          "name": "model_seed",
+          "value": "42"
+        },
+        {
+          "name": "purpose",
+          "value": "intake_summary"
+        },
+        {
+          "name": "temperature",
+          "value": "0.0"
+        }
+      ],
+      "relationships": [
+        {
+          "objectId": "AGT-INTAKE",
+          "qualifier": "performed_by"
+        },
+        {
+          "objectId": "APP-bc438fbf25",
+          "qualifier": "concerns"
+        },
+        {
+          "objectId": "PRM-intake_summary-v1",
+          "qualifier": "uses"
+        },
+        {
+          "objectId": "SESS-0000",
+          "qualifier": "within"
+        },
+        {
+          "objectId": "scripted-credit-policy-v1",
+          "qualifier": "uses"
+        }
+      ]
+    },
+    {
+      "id": "EVT-SESS-0000-004-emit_reasoning",
+      "type": "emit_reasoning",
+      "time": "2026-03-02T09:00:06Z",
+      "attributes": [
+        {
+          "name": "reasoning_kind",
+          "value": "intake_summary"
+        },
+        {
+          "name": "text_hash",
+          "value": "c1d08bd0baae16c6"
+        }
+      ],
+      "relationships": [
+        {
+          "objectId": "AGT-INTAKE",
+          "qualifier": "performed_by"
+        },
+        {
+          "objectId": "APP-bc438fbf25",
+          "qualifier": "concerns"
+        },
+        {
+          "objectId": "SESS-0000",
+          "qualifier": "within"
+        }
+      ]
+    },
+    {
+      "id": "EVT-SESS-0000-005-handoff",
+      "type": "handoff",
+      "time": "2026-03-02T09:00:07Z",
+      "attributes": [
+        {
+          "name": "handoff_kind",
+          "value": "sequential"
+        },
+        {
+          "name": "reason",
+          "value": "intake complete"
+        }
+      ],
+      "relationships": [
+        {
+          "objectId": "AGT-INTAKE",
+          "qualifier": "from"
+        },
+        {
+          "objectId": "AGT-RETRIEVAL",
+          "qualifier": "to"
+        },
+        {
+          "objectId": "APP-bc438fbf25",
+          "qualifier": "concerns"
+        },
+        {
+          "objectId": "SESS-0000",
+          "qualifier": "within"
+        }
+      ]
+    },
+    {
+      "id": "EVT-SESS-0000-006-invoke_agent",
+      "type": "invoke_agent",
+      "time": "2026-03-02T09:00:08Z",
+      "attributes": [
+        {
+          "name": "agent_role",
+          "value": "data_retrieval"
+        },
+        {
+          "name": "step_index",
+          "value": "2"
+        }
+      ],
+      "relationships": [
+        {
+          "objectId": "AGT-RETRIEVAL",
+          "qualifier": "performed_by"
+        },
+        {
+          "objectId": "APP-bc438fbf25",
+          "qualifier": "concerns"
+        },
+        {
+          "objectId": "SESS-0000",
+          "qualifier": "within"
+        }
+      ]
+    },
+    {
+      "id": "EVT-SESS-0000-007-call_tool",
+      "type": "call_tool",
+      "time": "2026-03-02T09:00:10Z",
+      "attributes": [
+        {
+          "name": "status",
+          "value": "ok"
+        },
+        {
+          "name": "tool_call_id",
+          "value": "TC-SESS-0000-credit_bureau_lookup"
+        }
+      ],
+      "relationships": [
+        {
+          "objectId": "AGT-RETRIEVAL",
+          "qualifier": "performed_by"
+        },
+        {
+          "objectId": "APP-bc438fbf25",
+          "qualifier": "concerns"
+        },
+        {
+          "objectId": "SESS-0000",
+          "qualifier": "within"
+        },
+        {
+          "objectId": "TOOL-credit_bureau_lookup",
+          "qualifier": "uses"
+        }
+      ]
+    },
+    {
+      "id": "EVT-SESS-0000-008-retrieve_data",
+      "type": "retrieve_data",
+      "time": "2026-03-02T09:00:12Z",
+      "attributes": [
+        {
+          "name": "purpose",
+          "value": "creditworthiness_assessment"
+        },
+        {
+          "name": "record_count",
+          "value": "1"
+        },
+        {
+          "name": "resource_type",
+          "value": "credit_bureau"
+        }
+      ],
+      "relationships": [
+        {
+          "objectId": "AGT-RETRIEVAL",
+          "qualifier": "performed_by"
+        },
+        {
+          "objectId": "APP-bc438fbf25",
+          "qualifier": "concerns"
+        },
+        {
+          "objectId": "RES-CREDIT-BUREAU",
+          "qualifier": "reads"
+        },
+        {
+          "objectId": "SESS-0000",
+          "qualifier": "within"
+        }
+      ]
+    },
+    {
+      "id": "EVT-SESS-0000-009-call_tool",
+      "type": "call_tool",
+      "time": "2026-03-02T09:00:14Z",
+      "attributes": [
+        {
+          "name": "status",
+          "value": "ok"
+        },
+        {
+          "name": "tool_call_id",
+          "value": "TC-SESS-0000-income_verification"
+        }
+      ],
+      "relationships": [
+        {
+          "objectId": "AGT-RETRIEVAL",
+          "qualifier": "performed_by"
+        },
+        {
+          "objectId": "APP-bc438fbf25",
+          "qualifier": "concerns"
+        },
+        {
+          "objectId": "SESS-0000",
+          "qualifier": "within"
+        },
+        {
+          "objectId": "TOOL-income_verification",
+          "qualifier": "uses"
+        }
+      ]
+    },
+    {
+      "id": "EVT-SESS-0000-010-retrieve_data",
+      "type": "retrieve_data",
+      "time": "2026-03-02T09:00:16Z",
+      "attributes": [
+        {
+          "name": "purpose",
+          "value": "creditworthiness_assessment"
+        },
+        {
+          "name": "record_count",
+          "value": "1"
+        },
+        {
+          "name": "resource_type",
+          "value": "income_verification"
+        }
+      ],
+      "relationships": [
+        {
+          "objectId": "AGT-RETRIEVAL",
+          "qualifier": "performed_by"
+        },
+        {
+          "objectId": "APP-bc438fbf25",
+          "qualifier": "concerns"
+        },
+        {
+          "objectId": "RES-INCOME",
+          "qualifier": "reads"
+        },
+        {
+          "objectId": "SESS-0000",
+          "qualifier": "within"
+        }
+      ]
+    },
+    {
+      "id": "EVT-SESS-0000-011-call_tool",
+      "type": "call_tool",
+      "time": "2026-03-02T09:00:18Z",
+      "attributes": [
+        {
+          "name": "status",
+          "value": "ok"
+        },
+        {
+          "name": "tool_call_id",
+          "value": "TC-SESS-0000-internal_credit_history"
+        }
+      ],
+      "relationships": [
+        {
+          "objectId": "AGT-RETRIEVAL",
+          "qualifier": "performed_by"
+        },
+        {
+          "objectId": "APP-bc438fbf25",
+          "qualifier": "concerns"
+        },
+        {
+          "objectId": "SESS-0000",
+          "qualifier": "within"
+        },
+        {
+          "objectId": "TOOL-internal_credit_history",
+          "qualifier": "uses"
+        }
+      ]
+    },
+    {
+      "id": "EVT-SESS-0000-012-retrieve_data",
+      "type": "retrieve_data",
+      "time": "2026-03-02T09:00:20Z",
+      "attributes": [
+        {
+          "name": "purpose",
+          "value": "creditworthiness_assessment"
+        },
+        {
+          "name": "record_count",
+          "value": "1"
+        },
+        {
+          "name": "resource_type",
+          "value": "internal_credit_history"
+        }
+      ],
+      "relationships": [
+        {
+          "objectId": "AGT-RETRIEVAL",
+          "qualifier": "performed_by"
+        },
+        {
+          "objectId": "APP-bc438fbf25",
+          "qualifier": "concerns"
+        },
+        {
+          "objectId": "RES-INTERNAL-HISTORY",
+          "qualifier": "reads"
+        },
+        {
+          "objectId": "SESS-0000",
+          "qualifier": "within"
+        }
+      ]
+    },
+    {
+      "id": "EVT-SESS-0000-013-call_tool",
+      "type": "call_tool",
+      "time": "2026-03-02T09:00:22Z",
+      "attributes": [
+        {
+          "name": "status",
+          "value": "ok"
+        },
+        {
+          "name": "tool_call_id",
+          "value": "TC-SESS-0000-demographic_bias_monitor"
+        }
+      ],
+      "relationships": [
+        {
+          "objectId": "AGT-RETRIEVAL",
+          "qualifier": "performed_by"
+        },
+        {
+          "objectId": "APP-bc438fbf25",
+          "qualifier": "concerns"
+        },
+        {
+          "objectId": "SESS-0000",
+          "qualifier": "within"
+        },
+        {
+          "objectId": "TOOL-demographic_bias_monitor",
+          "qualifier": "uses"
+        }
+      ]
+    },
+    {
+      "id": "EVT-SESS-0000-014-retrieve_data",
+      "type": "retrieve_data",
+      "time": "2026-03-02T09:00:24Z",
+      "attributes": [
+        {
+          "name": "purpose",
+          "value": "bias_detection_and_correction"
+        },
+        {
+          "name": "record_count",
+          "value": "1"
+        },
+        {
+          "name": "resource_type",
+          "value": "applicant_demographics"
+        }
+      ],
+      "relationships": [
+        {
+          "objectId": "AGT-RETRIEVAL",
+          "qualifier": "performed_by"
+        },
+        {
+          "objectId": "APN-d1081c16f1",
+          "qualifier": "concerns"
+        },
+        {
+          "objectId": "APP-bc438fbf25",
+          "qualifier": "concerns"
+        },
+        {
+          "objectId": "RES-DEMOGRAPHICS",
+          "qualifier": "reads"
+        },
+        {
+          "objectId": "SESS-0000",
+          "qualifier": "within"
+        }
+      ]
+    },
+    {
+      "id": "EVT-SESS-0000-015-handoff",
+      "type": "handoff",
+      "time": "2026-03-02T09:00:25Z",
+      "attributes": [
+        {
+          "name": "handoff_kind",
+          "value": "sequential"
+        },
+        {
+          "name": "reason",
+          "value": "data_retrieval complete"
+        }
+      ],
+      "relationships": [
+        {
+          "objectId": "AGT-RETRIEVAL",
+          "qualifier": "from"
+        },
+        {
+          "objectId": "AGT-SCORING",
+          "qualifier": "to"
+        },
+        {
+          "objectId": "APP-bc438fbf25",
+          "qualifier": "concerns"
+        },
+        {
+          "objectId": "SESS-0000",
+          "qualifier": "within"
+        }
+      ]
+    },
+    {
+      "id": "EVT-SESS-0000-016-invoke_agent",
+      "type": "invoke_agent",
+      "time": "2026-03-02T09:00:26Z",
+      "attributes": [
+        {
+          "name": "agent_role",
+          "value": "scoring"
+        },
+        {
+          "name": "step_index",
+          "value": "3"
+        }
+      ],
+      "relationships": [
+        {
+          "objectId": "AGT-SCORING",
+          "qualifier": "performed_by"
+        },
+        {
+          "objectId": "APP-bc438fbf25",
+          "qualifier": "concerns"
+        },
+        {
+          "objectId": "SESS-0000",
+          "qualifier": "within"
+        }
+      ]
+    },
+    {
+      "id": "EVT-SESS-0000-017-call_tool",
+      "type": "call_tool",
+      "time": "2026-03-02T09:00:28Z",
+      "attributes": [
+        {
+          "name": "status",
+          "value": "ok"
+        },
+        {
+          "name": "tool_call_id",
+          "value": "TC-SESS-0000-risk_scorecard"
+        }
+      ],
+      "relationships": [
+        {
+          "objectId": "AGT-SCORING",
+          "qualifier": "performed_by"
+        },
+        {
+          "objectId": "APP-bc438fbf25",
+          "qualifier": "concerns"
+        },
+        {
+          "objectId": "SESS-0000",
+          "qualifier": "within"
+        },
+        {
+          "objectId": "TOOL-risk_scorecard",
+          "qualifier": "uses"
+        }
+      ]
+    },
+    {
+      "id": "EVT-SESS-0000-018-call_llm",
+      "type": "call_llm",
+      "time": "2026-03-02T09:00:31Z",
+      "attributes": [
+        {
+          "name": "max_tokens",
+          "value": "512"
+        },
+        {
+          "name": "model_seed",
+          "value": "42"
+        },
+        {
+          "name": "purpose",
+          "value": "score_rationale"
+        },
+        {
+          "name": "temperature",
+          "value": "0.0"
+        }
+      ],
+      "relationships": [
+        {
+          "objectId": "AGT-SCORING",
+          "qualifier": "performed_by"
+        },
+        {
+          "objectId": "APP-bc438fbf25",
+          "qualifier": "concerns"
+        },
+        {
+          "objectId": "PRM-score_rationale-v1",
+          "qualifier": "uses"
+        },
+        {
+          "objectId": "SESS-0000",
+          "qualifier": "within"
+        },
+        {
+          "objectId": "scripted-credit-policy-v1",
+          "qualifier": "uses"
+        }
+      ]
+    },
+    {
+      "id": "EVT-SESS-0000-019-emit_reasoning",
+      "type": "emit_reasoning",
+      "time": "2026-03-02T09:00:32Z",
+      "attributes": [
+        {
+          "name": "reason_codes",
+          "value": "[\"RC01\",\"RC03\",\"RC07\"]"
+        },
+        {
+          "name": "reasoning_kind",
+          "value": "score_rationale"
+        },
+        {
+          "name": "text_hash",
+          "value": "05fddd741ce18f6b"
+        }
+      ],
+      "relationships": [
+        {
+          "objectId": "AGT-SCORING",
+          "qualifier": "performed_by"
+        },
+        {
+          "objectId": "APP-bc438fbf25",
+          "qualifier": "concerns"
+        },
+        {
+          "objectId": "SESS-0000",
+          "qualifier": "within"
+        }
+      ]
+    },
+    {
+      "id": "EVT-SESS-0000-020-handoff",
+      "type": "handoff",
+      "time": "2026-03-02T09:00:33Z",
+      "attributes": [
+        {
+          "name": "handoff_kind",
+          "value": "sequential"
+        },
+        {
+          "name": "reason",
+          "value": "scoring complete"
+        }
+      ],
+      "relationships": [
+        {
+          "objectId": "AGT-ADJUDICATION",
+          "qualifier": "to"
+        },
+        {
+          "objectId": "AGT-SCORING",
+          "qualifier": "from"
+        },
+        {
+          "objectId": "APP-bc438fbf25",
+          "qualifier": "concerns"
+        },
+        {
+          "objectId": "SESS-0000",
+          "qualifier": "within"
+        }
+      ]
+    },
+    {
+      "id": "EVT-SESS-0000-021-invoke_agent",
+      "type": "invoke_agent",
+      "time": "2026-03-02T09:00:34Z",
+      "attributes": [
+        {
+          "name": "agent_role",
+          "value": "adjudication"
+        },
+        {
+          "name": "step_index",
+          "value": "4"
+        }
+      ],
+      "relationships": [
+        {
+          "objectId": "AGT-ADJUDICATION",
+          "qualifier": "performed_by"
+        },
+        {
+          "objectId": "APP-bc438fbf25",
+          "qualifier": "concerns"
+        },
+        {
+          "objectId": "SESS-0000",
+          "qualifier": "within"
+        }
+      ]
+    },
+    {
+      "id": "EVT-SESS-0000-022-call_llm",
+      "type": "call_llm",
+      "time": "2026-03-02T09:00:37Z",
+      "attributes": [
+        {
+          "name": "max_tokens",
+          "value": "512"
+        },
+        {
+          "name": "model_seed",
+          "value": "42"
+        },
+        {
+          "name": "purpose",
+          "value": "decision_notice"
+        },
+        {
+          "name": "temperature",
+          "value": "0.0"
+        }
+      ],
+      "relationships": [
+        {
+          "objectId": "AGT-ADJUDICATION",
+          "qualifier": "performed_by"
+        },
+        {
+          "objectId": "APP-bc438fbf25",
+          "qualifier": "concerns"
+        },
+        {
+          "objectId": "PRM-adverse_action-v1",
+          "qualifier": "uses"
+        },
+        {
+          "objectId": "SESS-0000",
+          "qualifier": "within"
+        },
+        {
+          "objectId": "scripted-credit-policy-v1",
+          "qualifier": "uses"
+        }
+      ]
+    },
+    {
+      "id": "EVT-SESS-0000-023-request_approval",
+      "type": "request_approval",
+      "time": "2026-03-02T09:00:42Z",
+      "attributes": [
+        {
+          "name": "amount_dm",
+          "value": "5951"
+        },
+        {
+          "name": "proposed_outcome",
+          "value": "deny"
+        },
+        {
+          "name": "proposed_score",
+          "value": "454"
+        },
+        {
+          "name": "required_role",
+          "value": "senior_underwriter"
+        },
+        {
+          "name": "sla_seconds",
+          "value": "86400"
+        }
+      ],
+      "relationships": [
+        {
+          "objectId": "AGT-ADJUDICATION",
+          "qualifier": "performed_by"
+        },
+        {
+          "objectId": "APP-bc438fbf25",
+          "qualifier": "concerns"
+        },
+        {
+          "objectId": "APR-002",
+          "qualifier": "concerns"
+        },
+        {
+          "objectId": "APRV-SESS-0000",
+          "qualifier": "requests"
+        },
+        {
+          "objectId": "DEC-APP-bc438fbf25",
+          "qualifier": "concerns"
+        },
+        {
+          "objectId": "SESS-0000",
+          "qualifier": "within"
+        }
+      ]
+    },
+    {
+      "id": "EVT-SESS-0000-024-grant_approval",
+      "type": "grant_approval",
+      "time": "2026-03-02T09:02:42Z",
+      "attributes": [
+        {
+          "name": "approver_role",
+          "value": "senior_underwriter"
+        },
+        {
+          "name": "authority_level",
+          "value": "2"
+        },
+        {
+          "name": "rationale_hash",
+          "value": "0756182af4afaf47"
+        }
+      ],
+      "relationships": [
+        {
+          "objectId": "APP-bc438fbf25",
+          "qualifier": "concerns"
+        },
+        {
+          "objectId": "APR-002",
+          "qualifier": "performed_by"
+        },
+        {
+          "objectId": "APRV-SESS-0000",
+          "qualifier": "produces"
+        },
+        {
+          "objectId": "DEC-APP-bc438fbf25",
+          "qualifier": "approves"
+        },
+        {
+          "objectId": "SESS-0000",
+          "qualifier": "within"
+        }
+      ]
+    },
+    {
+      "id": "EVT-SESS-0000-025-make_decision",
+      "type": "make_decision",
+      "time": "2026-03-02T09:02:44Z",
+      "attributes": [
+        {
+          "name": "adverse",
+          "value": "true"
+        },
+        {
+          "name": "outcome",
+          "value": "deny"
+        },
+        {
+          "name": "reason_codes",
+          "value": "[\"RC01\",\"RC03\",\"RC07\"]"
+        },
+        {
+          "name": "score",
+          "value": "454"
+        }
+      ],
+      "relationships": [
+        {
+          "objectId": "AGT-ADJUDICATION",
+          "qualifier": "performed_by"
+        },
+        {
+          "objectId": "APN-d1081c16f1",
+          "qualifier": "concerns"
+        },
+        {
+          "objectId": "APP-bc438fbf25",
+          "qualifier": "concerns"
+        },
+        {
+          "objectId": "APRV-SESS-0000",
+          "qualifier": "concerns"
+        },
+        {
+          "objectId": "DEC-APP-bc438fbf25",
+          "qualifier": "produces"
+        },
+        {
+          "objectId": "POL-CREDIT-2026.02",
+          "qualifier": "governed_by"
+        },
+        {
+          "objectId": "SESS-0000",
+          "qualifier": "within"
+        }
+      ]
+    },
+    {
+      "id": "EVT-SESS-0000-026-emit_reasoning",
+      "type": "emit_reasoning",
+      "time": "2026-03-02T09:02:45Z",
+      "attributes": [
+        {
+          "name": "reason_codes",
+          "value": "[\"RC01\",\"RC03\",\"RC07\"]"
+        },
+        {
+          "name": "reasoning_kind",
+          "value": "adverse_action_statement"
+        },
+        {
+          "name": "text_hash",
+          "value": "c20377554aab2df0"
+        }
+      ],
+      "relationships": [
+        {
+          "objectId": "AGT-ADJUDICATION",
+          "qualifier": "performed_by"
+        },
+        {
+          "objectId": "APP-bc438fbf25",
+          "qualifier": "concerns"
+        },
+        {
+          "objectId": "DEC-APP-bc438fbf25",
+          "qualifier": "explains"
+        },
+        {
+          "objectId": "SESS-0000",
+          "qualifier": "within"
+        }
+      ]
+    },
+    {
+      "id": "EVT-SESS-0000-027-notify_applicant",
+      "type": "notify_applicant",
+      "time": "2026-03-02T09:02:46Z",
+      "attributes": [
+        {
+          "name": "adverse_action_notice",
+          "value": "true"
+        },
+        {
+          "name": "channel",
+          "value": "letter"
+        },
+        {
+          "name": "contains_reason_codes",
+          "value": "true"
+        }
+      ],
+      "relationships": [
+        {
+          "objectId": "AGT-ADJUDICATION",
+          "qualifier": "performed_by"
+        },
+        {
+          "objectId": "APN-d1081c16f1",
+          "qualifier": "concerns"
+        },
+        {
+          "objectId": "APP-bc438fbf25",
+          "qualifier": "concerns"
+        },
+        {
+          "objectId": "DEC-APP-bc438fbf25",
+          "qualifier": "concerns"
+        },
+        {
+          "objectId": "SESS-0000",
+          "qualifier": "within"
+        }
+      ]
+    },
+    {
+      "id": "EVT-SESS-0000-028-session_end",
+      "type": "session_end",
+      "time": "2026-03-02T09:02:47Z",
+      "attributes": [
+        {
+          "name": "duration_seconds",
+          "value": "166"
+        },
+        {
+          "name": "event_count",
+          "value": "28"
+        },
+        {
+          "name": "outcome",
+          "value": "deny"
+        }
+      ],
+      "relationships": [
+        {
+          "objectId": "APP-bc438fbf25",
+          "qualifier": "concerns"
+        },
+        {
+          "objectId": "DEC-APP-bc438fbf25",
+          "qualifier": "concerns"
+        },
+        {
+          "objectId": "SESS-0000",
+          "qualifier": "within"
+        }
+      ]
+    }
+  ]
+}
