@@ -8,11 +8,20 @@ nothing here may import pandas or pm4py — serialisation lives in
 Every validation rule R1-R15 exists because a serialisation layer or the
 hash chain depends on it (docs/SPIKE-pm4py-roundtrip.md): pm4py's exporters
 silently delete relation-less objects (R13/G1), its JSON importer
-deduplicates event-object pairs (R7/G2), its SQLite importer corrupts
-numeric-looking ids (R2), its JSON importer turns the literal string "null"
-into None and its XML importer turns empty element text into the literal
-string 'None' (R5 keeps both decodes bijective), and the canonical hash
-needs exactly one spelling per value (R4, R6). Raised, never repaired.
+deduplicates event-object pairs (R7/G2), its SQLite importer runs every id
+column through a normaliser whose regex truncates ids ending in a backslash
+followed by any character and ``0`` — and strips ``.0`` from ids that land
+in numeric-affinity columns — so ids are confined to a safe charset and may
+never read as numeric literals (R2), its JSON importer turns the literal
+string "null" into None and its XML importer turns empty element text into
+the literal string 'None' (R5 keeps both decodes bijective), XML-1.0
+line-ending normalisation rewrites carriage returns and XML forbids most
+control characters outright (R5 bans them, with lone surrogates, so every
+admitted string survives every serialisation byte-identically), integers
+beyond 2**53-1 lose precision in pm4py's float64-pooled attribute columns
+(R4 enforces the IEEE-754-safe bound), and the canonical hash needs exactly
+one spelling per value (R4, R6 — including -0.0, canonicalised to 0.0).
+Raised, never repaired.
 """
 
 from __future__ import annotations
@@ -61,6 +70,17 @@ TIMESTAMP_FORMAT: Final[str] = "%Y-%m-%dT%H:%M:%SZ"
 
 _NUMERIC_LITERAL: Final[re.Pattern[str]] = re.compile(r"-?\d+(\.\d+)?")
 
+#: Ids are confined to this charset so no serialisation layer can rewrite
+#: them: pm4py's sqlite id normaliser truncates ids matching ``\\.0$`` (a
+#: literal backslash, any character, then ``0``), and whitespace/control/
+#: non-ASCII ids have format-dependent spellings.
+_ID_PATTERN: Final[re.Pattern[str]] = re.compile(r"[A-Za-z0-9][A-Za-z0-9._:-]*")
+
+#: The largest integer every serialisation preserves exactly: pm4py pools
+#: attribute columns across entities, and one absent value coerces the
+#: column to float64 (IEEE-754 doubles are exact only to 2**53).
+JSON_SAFE_INT_MAX: Final[int] = 2**53 - 1
+
 
 def canonical_json(obj: object) -> str:
     """The house canonical JSON (CLAUDE.md rule 2)."""
@@ -70,10 +90,18 @@ def canonical_json(obj: object) -> str:
 def _validate_id(owner: str, value: str) -> None:
     if not value:
         raise OCELModelError(f"{owner} id is empty")
+    if not _ID_PATTERN.fullmatch(value):
+        raise OCELModelError(
+            f"{owner} id {value!r} is outside the safe id charset "
+            "[A-Za-z0-9][A-Za-z0-9._:-]*; pm4py's sqlite id normaliser silently "
+            "truncates ids ending in a backslash sequence, and whitespace, "
+            "control, or non-ASCII ids have format-dependent spellings"
+        )
     if _NUMERIC_LITERAL.fullmatch(value):
         raise OCELModelError(
             f"{owner} id {value!r} reads as a numeric literal; pm4py's sqlite "
-            "importer strips trailing '.0' from such ids, so they are banned outright"
+            "importer strips trailing '.0' from ids in numeric-affinity columns, "
+            "so they are banned outright"
         )
 
 
@@ -90,6 +118,7 @@ def _validate_attrs(
     duplicates = {name for name in names if names.count(name) > 1}
     if duplicates:
         raise OCELModelError(f"{owner} has duplicate attribute names: {sorted(duplicates)}")
+    canonical: list[tuple[str, AttrValue]] = []
     for name, value in pairs:
         if name not in registry:
             raise OCELModelError(
@@ -97,31 +126,64 @@ def _validate_attrs(
                 f"allows {sorted(registry)}"
             )
         kind = registry[name]
-        _validate_value(owner, name, kind, value)
-    return tuple(sorted(pairs, key=lambda pair: pair[0]))
+        canonical.append((name, _validate_value(owner, name, kind, value)))
+    return tuple(sorted(canonical, key=lambda pair: pair[0]))
 
 
-def _validate_value(owner: str, name: str, kind: AttributeKind, value: AttrValue) -> None:
+def _validate_string(owner: str, name: str, value: str) -> None:
+    if value.strip().lower() in ("null", "none"):
+        raise OCELModelError(
+            f"attribute {name!r} on {owner} holds the unrepresentable string "
+            f"{value!r}: pm4py's JSON importer maps 'null' to None and its XML "
+            "importer renders empty text as 'None', so both spellings are banned "
+            "to keep the decode bijective"
+        )
+    for ch in value:
+        code = ord(ch)
+        if code < 0x20 and ch not in ("\n", "\t"):
+            raise OCELModelError(
+                f"attribute {name!r} on {owner} holds the unrepresentable control "
+                f"character U+{code:04X}: XML forbids most control characters and "
+                "XML-1.0 line-ending normalisation silently rewrites carriage "
+                "returns, so only newline and tab are admitted"
+            )
+    try:
+        value.encode("utf-8")
+    except UnicodeEncodeError:
+        raise OCELModelError(
+            f"attribute {name!r} on {owner} holds an unrepresentable lone "
+            "surrogate; it cannot be UTF-8-encoded, so neither the hash nor any "
+            "serialisation could ever carry it"
+        ) from None
+
+
+def _validate_value(owner: str, name: str, kind: AttributeKind, value: AttrValue) -> AttrValue:
+    """Validate one value against its declared kind, returning its one
+    canonical spelling (only -0.0 is ever rewritten, to 0.0)."""
+
     def fail(got: str) -> OCELModelError:
         return OCELModelError(f"attribute {name!r} on {owner} must be {kind.value}, got {got}")
 
     if kind is AttributeKind.STRING:
         if not isinstance(value, str):
             raise fail(type(value).__name__)
-        if value.strip().lower() in ("null", "none"):
-            raise OCELModelError(
-                f"attribute {name!r} on {owner} holds the unrepresentable string "
-                f"{value!r}: pm4py's JSON importer maps 'null' to None and its XML "
-                "importer renders empty text as 'None', so both spellings are banned "
-                "to keep the decode bijective"
-            )
-    elif kind is AttributeKind.BOOLEAN:
+        _validate_string(owner, name, value)
+        return value
+    if kind is AttributeKind.BOOLEAN:
         if not isinstance(value, bool):
             raise fail(type(value).__name__)
-    elif kind is AttributeKind.INTEGER:
+        return value
+    if kind is AttributeKind.INTEGER:
         if isinstance(value, bool) or not isinstance(value, int):
             raise fail(type(value).__name__)
-    elif kind is AttributeKind.FLOAT:
+        if abs(value) > JSON_SAFE_INT_MAX:
+            raise OCELModelError(
+                f"attribute {name!r} on {owner} exceeds the IEEE-754-exact bound "
+                f"2**53-1; pm4py pools attribute columns to float64, which would "
+                "silently truncate it"
+            )
+        return value
+    if kind is AttributeKind.FLOAT:
         if isinstance(value, bool) or not isinstance(value, float):
             raise fail(type(value).__name__)
         if not math.isfinite(value):
@@ -129,11 +191,15 @@ def _validate_value(owner: str, name: str, kind: AttributeKind, value: AttrValue
                 f"attribute {name!r} on {owner} must be a finite float; non-finite "
                 "values have no canonical JSON spelling"
             )
-    elif kind is AttributeKind.STRING_LIST:
+        # -0.0 equals 0.0 but canonical-JSON-spells differently; one spelling.
+        return value + 0.0
+    if kind is AttributeKind.STRING_LIST:
         if not isinstance(value, tuple) or not all(isinstance(item, str) for item in value):
             raise fail(type(value).__name__)
-    else:  # pragma: no cover - the enum is closed
-        raise fail(type(value).__name__)
+        for item in value:
+            _validate_string(owner, name, item)
+        return value
+    raise fail(type(value).__name__)  # pragma: no cover - the enum is closed
 
 
 @dataclass(frozen=True, slots=True)

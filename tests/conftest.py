@@ -182,7 +182,9 @@ def build_mini_log() -> object:
             resource_type="credit_bureau",
             classification="internal",
             lawful_basis="",
-            controller="bureau_gmbh",
+            # Deliberately non-ASCII: a unicode tripwire for encoding drift
+            # anywhere in the write/read paths (see review finding, 19 Aug).
+            controller="Kreditbüro Süd GmbH",
             retention_class="std_7y",
         ),
         obj(

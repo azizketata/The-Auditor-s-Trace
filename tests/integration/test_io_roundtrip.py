@@ -31,7 +31,7 @@ FIXTURE = Path(__file__).resolve().parent.parent / "fixtures" / "mini_log.json"
 #: Golden hash of the miniature log. Pinned so every run, every serialisation
 #: format, and both CI platforms (Windows + Ubuntu) must agree on one value.
 #: Regenerate ONLY on a deliberate model change: log_hash(build_mini_log()).
-MINI_LOG_HASH = "8ec53626c97041901e2245dd363944ceac6cb1c5162989a196896d66b2bc6041"
+MINI_LOG_HASH = "d9a506f9b13b2e3202f23817cf88f5be7ab38a9afd08c16b7a93a8011dfcf6ef"
 
 FORMATS = [
     pytest.param("json", "log.jsonocel", id="json"),
@@ -281,6 +281,103 @@ def test_mini_log_fixture_readable_by_pm4py() -> None:
 # --- adversarial reads -----------------------------------------------------
 
 
+@pytest.mark.parametrize(("fmt", "fname"), FORMATS)
+def test_value_domain_extremes_roundtrip(fmt: str, fname: str, tmp_path: Path) -> None:
+    """Negative ints, the IEEE-exact integer bound, and non-ASCII strings
+    survive every serialisation (review finding, 19 Aug 2026: the fixture's
+    value domain alone was too tame to catch encoding drift)."""
+    from auditors_trace.model.log import (
+        JSON_SAFE_INT_MAX,
+        OCELEvent,
+        OCELLog,
+        OCELObject,
+        OCELRelation,
+    )
+    from auditors_trace.model.ocel_schema import EventType, ObjectType, Qualifier
+
+    log = OCELLog(
+        events=(
+            OCELEvent(
+                event_id="EV-1",
+                event_type=EventType.SESSION_START,
+                timestamp="2026-03-02T09:00:00Z",
+                attributes=(("scenario_name", "Prüfung 🚀 Szenario"), ("seed", -42)),
+                relations=(
+                    OCELRelation(object_id="SES-1", qualifier=Qualifier.DECLARES),
+                    OCELRelation(object_id="APP-1", qualifier=Qualifier.DECLARES),
+                ),
+            ),
+        ),
+        objects=(
+            OCELObject(
+                object_id="SES-1",
+                object_type=ObjectType.SESSION,
+                attributes=(("session_id", "SES-1"), ("workflow_name", "Kreditprüfung")),
+            ),
+            OCELObject(
+                object_id="APP-1",
+                object_type=ObjectType.APPLICATION,
+                attributes=(("amount", JSON_SAFE_INT_MAX), ("application_id", "APP-1")),
+            ),
+        ),
+    )
+    back = _roundtrip(log, fmt, fname, tmp_path)
+    assert back == log
+    assert _attr(_event(back, "EV-1"), "seed") == -42
+    assert _attr(_event(back, "EV-1"), "scenario_name") == "Prüfung 🚀 Szenario"
+    assert _attr(_object(back, "APP-1"), "amount") == JSON_SAFE_INT_MAX
+
+
+def test_foreign_json_with_truncated_integer_raises(mini_log: Any, tmp_path: Path) -> None:
+    """A foreign file carrying an integer beyond 2**53 arrives at the decode
+    as an already-truncated float64; the reader refuses to guess (review
+    finding, 19 Aug 2026)."""
+    import json
+
+    from auditors_trace.model.io import read_ocel, write_ocel
+    from auditors_trace.model.log import OCELModelError
+
+    path = tmp_path / "big.jsonocel"
+    write_ocel(mini_log, path, "json")
+    doc = json.loads(path.read_text(encoding="utf-8"))
+    changed = 0
+    for event_or_obj in doc["objects"]:
+        for attribute in event_or_obj.get("attributes", []):
+            if attribute["name"] == "amount" and attribute["value"] == "4870":
+                attribute["value"] = str(2**53 + 1)
+                changed += 1
+    assert changed == 1
+    path.write_text(json.dumps(doc, indent=2, ensure_ascii=False), encoding="utf-8")
+    with pytest.raises(OCELModelError, match=r"IEEE-754|truncated"):
+        read_ocel(path, "json")
+
+
+def test_write_refuses_an_empty_log(tmp_path: Path) -> None:
+    """pm4py cannot re-read an empty OCEL file; the writer says so upfront
+    instead of leaving a landmine (review finding, 19 Aug 2026)."""
+    from auditors_trace.model.io import write_ocel
+    from auditors_trace.model.log import OCELLog, OCELModelError
+
+    with pytest.raises(OCELModelError, match="empty"):
+        write_ocel(OCELLog(), tmp_path / "empty.jsonocel", "json")
+
+
+def test_malformed_foreign_file_raises_ocel_model_error(tmp_path: Path) -> None:
+    """pm4py-internal exceptions never leak through read_ocel (review
+    finding, 19 Aug 2026): the module's error contract is OCELModelError."""
+    from auditors_trace.model.io import read_ocel
+    from auditors_trace.model.log import OCELModelError
+
+    path = tmp_path / "broken.jsonocel"
+    path.write_text(
+        '{"eventTypes": [], "objectTypes": [], '
+        '"events": [{"id": "e1", "type": "session_start", "time": null}], "objects": []}',
+        encoding="utf-8",
+    )
+    with pytest.raises(OCELModelError):
+        read_ocel(path, "json")
+
+
 def test_read_rejects_unknown_qualifier(mini_log: Any, tmp_path: Path) -> None:
     from auditors_trace.model.io import read_ocel, write_ocel
     from auditors_trace.model.log import OCELModelError
@@ -312,13 +409,20 @@ def test_foreign_null_string_reads_as_absent_attribute(mini_log: Any, tmp_path: 
     does simply loses the attribute — pinned here so the behavior is a
     documented fact, not a surprise.
     """
+    import json
+
     from auditors_trace.model.io import read_ocel, write_ocel
 
     path = tmp_path / "foreign.jsonocel"
     write_ocel(mini_log, path, "json")
-    original = path.read_text(encoding="utf-8")
-    text = original.replace('"bureau_gmbh"', '"null"')
-    assert text != original  # the replace matched
-    path.write_text(text, encoding="utf-8")
+    doc = json.loads(path.read_text(encoding="utf-8"))
+    changed = 0
+    for obj in doc["objects"]:
+        for attribute in obj.get("attributes", []):
+            if attribute["name"] == "controller":
+                attribute["value"] = "null"
+                changed += 1
+    assert changed == 1
+    path.write_text(json.dumps(doc, indent=2, ensure_ascii=False), encoding="utf-8")
     back = read_ocel(path, "json")
     assert "controller" not in dict(_object(back, "RES-BUREAU").attributes)

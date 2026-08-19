@@ -126,6 +126,17 @@ class TestValidationRejects:
                 attributes=(("session_id", "s"), ("workflow_name", "w")),
             )
 
+    @pytest.mark.parametrize("bad_id", ["SES-\\x0", "SES A", "SES\tA", "SÉS-1", "-SES"])
+    def test_r2_ids_outside_the_safe_charset(self, bad_id: str) -> None:
+        # pm4py's sqlite id normaliser truncates ids ending in backslash+char+0
+        # (review finding, 19 Aug 2026); the charset ban covers the whole class.
+        with pytest.raises(OCELModelError, match="charset"):
+            OCELObject(
+                object_id=bad_id,
+                object_type=ObjectType.SESSION,
+                attributes=(("session_id", "s"), ("workflow_name", "w")),
+            )
+
     def test_r3_duplicate_attribute_name(self) -> None:
         with pytest.raises(OCELModelError, match="duplicate"):
             _event(attributes=(("seed", 1), ("seed", 2)))
@@ -164,6 +175,68 @@ class TestValidationRejects:
                 object_type=ObjectType.DATA_RESOURCE,
                 attributes=(("lawful_basis", poison),),
             )
+
+    @pytest.mark.parametrize("poison", ["a\rb", "a\x01b", "a\x00b", "line1\r\nline2"])
+    def test_r5_control_characters_rejected(self, poison: str) -> None:
+        # XML-1.0 line-ending normalisation silently rewrites \r and XML
+        # forbids most control chars (review finding, 19 Aug 2026).
+        with pytest.raises(OCELModelError, match="control"):
+            OCELObject(
+                object_id="RES-1",
+                object_type=ObjectType.DATA_RESOURCE,
+                attributes=(("lawful_basis", poison),),
+            )
+
+    def test_r5_newline_and_tab_are_admitted(self) -> None:
+        obj = OCELObject(
+            object_id="RES-1",
+            object_type=ObjectType.DATA_RESOURCE,
+            attributes=(("lawful_basis", "line1\nline2\tend"),),
+        )
+        assert dict(obj.attributes)["lawful_basis"] == "line1\nline2\tend"
+
+    def test_r5_lone_surrogate_rejected(self) -> None:
+        # A lone surrogate constructs a log that log_hash could never encode
+        # (review finding, 19 Aug 2026) - rejected at the gate instead.
+        with pytest.raises(OCELModelError, match="surrogate"):
+            OCELObject(
+                object_id="RES-1",
+                object_type=ObjectType.DATA_RESOURCE,
+                attributes=(("lawful_basis", "\ud800"),),
+            )
+
+    def test_r5_string_list_items_get_the_same_hygiene(self) -> None:
+        with pytest.raises(OCELModelError, match="control"):
+            OCELObject(
+                object_id="DEC-1",
+                object_type=ObjectType.CREDIT_DECISION,
+                attributes=(("reason_codes", ("RC01", "RC\r02")),),
+            )
+
+    def test_r4_integer_beyond_ieee_exact_bound(self) -> None:
+        # pm4py pools attribute columns to float64; 2**53+1 would silently
+        # truncate on the JSON path (review finding, 19 Aug 2026).
+        with pytest.raises(OCELModelError, match="IEEE-754"):
+            OCELObject(
+                object_id="APP-1",
+                object_type=ObjectType.APPLICATION,
+                attributes=(("amount", 2**53 + 1), ("application_id", "APP-1")),
+            )
+
+    def test_negative_zero_is_canonicalised_not_rejected(self) -> None:
+        # 0.0 and -0.0 are equal but canonical-JSON-spell differently; one
+        # spelling enters the model (review finding, 19 Aug 2026).
+        def call_llm(temperature: float) -> OCELEvent:
+            return OCELEvent(
+                event_id="EV-L",
+                event_type=EventType.CALL_LLM,
+                timestamp="2026-03-02T09:00:01Z",
+                attributes=(("temperature", temperature),),
+                relations=(OCELRelation(object_id="MDL-1", qualifier=Qualifier.USES),),
+            )
+
+        assert call_llm(-0.0) == call_llm(0.0)
+        assert repr(dict(call_llm(-0.0).attributes)["temperature"]) == "0.0"
 
     @pytest.mark.parametrize(
         "timestamp",

@@ -38,6 +38,7 @@ import pm4py
 from pm4py.objects.ocel.obj import OCEL
 
 from auditors_trace.model.log import (
+    JSON_SAFE_INT_MAX,
     OCELEvent,
     OCELLog,
     OCELModelError,
@@ -121,6 +122,11 @@ def _frame(rows: list[dict[str, object]], reserved: tuple[str, ...]) -> pd.DataF
 def write_ocel(log: OCELLog, path: Path, serialisation: Serialisation) -> None:
     """Write the log to ``path`` in the given serialisation, deterministically."""
     path = Path(path)
+    if not log.events:
+        raise OCELModelError(
+            "refusing to write an empty log: pm4py cannot re-read an OCEL file "
+            "with no events, so the round-trip contract would be unsatisfiable"
+        )
     if path.exists():
         path.unlink()
 
@@ -192,7 +198,7 @@ def _patch_json_declared_types(path: Path) -> None:
         kinds = object_attribute_kinds(ObjectType(entry["name"]))
         for attr in entry.get("attributes", []):
             attr["type"] = _KIND_TO_OCEL_TYPE[kinds[attr["name"]]]
-    path.write_text(json.dumps(doc, indent=2), encoding="utf-8", newline="\n")
+    path.write_text(json.dumps(doc, indent=2, ensure_ascii=False), encoding="utf-8", newline="\n")
 
 
 def _patch_xml_standard_shape(path: Path, types_by_id: Mapping[str, ObjectType]) -> None:
@@ -230,7 +236,10 @@ def _patch_xml_standard_shape(path: Path, types_by_id: Mapping[str, ObjectType])
                 attr_name = attribute.get("name")
                 if attr_name is not None and attr_name in kinds:
                     attribute.set("type", _KIND_TO_OCEL_TYPE[kinds[attr_name]])
-    tree.write(path, encoding="UTF-8", xml_declaration=True)
+    # Binary mode: a text-mode write would apply platform newline translation
+    # and desynchronise file bytes between Windows and Linux.
+    with path.open("wb") as sink:
+        tree.write(sink, encoding="UTF-8", xml_declaration=True)
 
 
 # --- read -------------------------------------------------------------------
@@ -272,6 +281,12 @@ def _decode(
         if isinstance(raw, int):
             return raw
         if isinstance(raw, float) and raw.is_integer():
+            if abs(raw) > JSON_SAFE_INT_MAX:
+                raise OCELModelError(
+                    f"attribute {name!r} on {owner} arrived as the float {raw!r}, "
+                    "beyond the IEEE-754-exact bound 2**53-1: the original integer "
+                    "was already truncated upstream and cannot be recovered"
+                )
             return int(raw)
         if isinstance(raw, str):
             try:
@@ -348,14 +363,34 @@ def read_ocel(path: Path, serialisation: Serialisation) -> OCELLog:
     if not path.exists():
         raise OCELModelError(f"no such OCEL file: {path}")
 
-    if serialisation == "json":
-        ocel: Any = pm4py.read_ocel2_json(str(path))
-    elif serialisation == "xml":
-        ocel = pm4py.read_ocel2_xml(str(path))
-    elif serialisation == "sqlite":
-        ocel = pm4py.read_ocel2_sqlite(str(path))
-    else:  # pragma: no cover - Literal narrows this away for typed callers
-        raise OCELModelError(f"unknown serialisation {serialisation!r}")
+    # The importer VARIANT is pinned explicitly: pm4py's top-level readers
+    # silently switch to a Rust backend (rustxes) whenever it is importable,
+    # which would make decode semantics depend on environment contents.
+    # Anything pm4py raises while parsing is wrapped: the module's error
+    # contract is OCELModelError, never a leaked pandas/lxml internal.
+    try:
+        if serialisation == "json":
+            from pm4py.objects.ocel.importer.jsonocel import importer as json_importer
+
+            ocel: Any = json_importer.apply(
+                str(path), variant=json_importer.Variants.OCEL20_STANDARD
+            )
+        elif serialisation == "xml":
+            from pm4py.objects.ocel.importer.xmlocel import importer as xml_importer
+
+            ocel = xml_importer.apply(str(path), variant=xml_importer.Variants.OCEL20)
+        elif serialisation == "sqlite":
+            from pm4py.objects.ocel.importer.sqlite import importer as sqlite_importer
+
+            ocel = sqlite_importer.apply(str(path), variant=sqlite_importer.Variants.OCEL20)
+        else:  # pragma: no cover - Literal narrows this away for typed callers
+            raise OCELModelError(f"unknown serialisation {serialisation!r}")
+    except OCELModelError:
+        raise
+    except Exception as exc:
+        raise OCELModelError(
+            f"pm4py could not parse {path} as OCEL 2.0 {serialisation}: {type(exc).__name__}: {exc}"
+        ) from exc
 
     if ocel.object_changes is not None and len(ocel.object_changes) > 0:
         raise OCELModelError(
