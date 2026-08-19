@@ -47,22 +47,31 @@ deliberate — see hard rule 5 above and BUILD-PLAN.md section 0 rule 6.
 
 ## Current state
 
-Phases 0 and 2 complete (Phase 2 was pulled ahead of Phase 1 by explicit
+Phases 0, 1, and 2 complete (Phase 2 was pulled ahead of Phase 1 by explicit
 decision — it emits spans and never touches the OCEL model). Built:
 
 - `model/span_contract.py` — the `at.*` governance span vocabulary
   (`at-span/1`), THE contract between the scenario (writer) and Phase 3's
   mapper (reader). Change it only with a version bump.
-- `model/ocel_schema.py` — the three enums are real; the two functions stay
-  Phase 1 stubs.
+- `model/ocel_schema.py` — enums, the attribute-kind registry, and the
+  qualifier matrix (bound 1:1 to the golden scenario spans by test).
+  `Qualifier.DECLARES` is OCEL-level only, never in `at.*` spans.
+- `model/log.py` — the immutable OCEL model, validation rules R1–R15, and
+  `log_hash` (canonical JSON over the model, never file bytes). Stdlib-only.
+- `model/io.py` — pm4py round trips in JSON/XML/SQLite, the only module
+  that touches pandas. Values written as strings, decoded by the registry;
+  JSON/XML post-passes make the files official-schema-valid (see
+  docs/SPIKE-pm4py-roundtrip.md and tests/integration/test_ocel_validation.py).
+- `tests/fixtures/mini_log.json` + `build_mini_log()` in tests/conftest.py —
+  twin fixtures (file ↔ model bound by test) with a pinned golden
+  `log_hash` the CI matrix asserts on Windows and Ubuntu.
 - `scenario/` — the four-agent LangGraph fleet. 28 events/session, all 13
   event types, all 12 object types. `make scenario` runs it scripted.
 
-Still stubs: `model/log.py`, `model/io.py` (Phase 1), `ingest/` (Phase 3),
-`constraints/`, `evidence/`, `baselines/`, `eval/`, `scenario/injector.py`
-(Phase 4). `data/catalogue/scenario_credit.yaml` is the scenario catalogue —
-distinct from `violations.yaml`, which does not exist yet and gets frozen at
-Phase 4.
+Still stubs: `ingest/` (Phase 3), `constraints/`, `evidence/`,
+`baselines/`, `eval/`, `scenario/injector.py` (Phase 4).
+`data/catalogue/scenario_credit.yaml` is the scenario catalogue — distinct
+from `violations.yaml`, which does not exist yet and gets frozen at Phase 4.
 
 Known spec deviations, both surfaced and approved: the Claude API has no
 sampling seed (recorded as provenance instead), and `temperature` is only

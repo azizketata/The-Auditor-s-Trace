@@ -1,0 +1,1728 @@
+{
+  "objectTypes": [
+    {
+      "name": "Agent",
+      "attributes": [
+        {
+          "name": "agent_id",
+          "type": "string"
+        },
+        {
+          "name": "framework",
+          "type": "string"
+        },
+        {
+          "name": "name",
+          "type": "string"
+        },
+        {
+          "name": "role",
+          "type": "string"
+        },
+        {
+          "name": "version",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "name": "Applicant",
+      "attributes": [
+        {
+          "name": "applicant_id",
+          "type": "string"
+        },
+        {
+          "name": "jurisdiction",
+          "type": "string"
+        },
+        {
+          "name": "pseudonym_scheme",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "name": "Application",
+      "attributes": [
+        {
+          "name": "amount",
+          "type": "integer"
+        },
+        {
+          "name": "application_id",
+          "type": "string"
+        },
+        {
+          "name": "currency",
+          "type": "string"
+        },
+        {
+          "name": "product_type",
+          "type": "string"
+        },
+        {
+          "name": "purpose",
+          "type": "string"
+        },
+        {
+          "name": "submitted_at",
+          "type": "string"
+        },
+        {
+          "name": "term_months",
+          "type": "integer"
+        }
+      ]
+    },
+    {
+      "name": "Approval",
+      "attributes": [
+        {
+          "name": "approval_id",
+          "type": "string"
+        },
+        {
+          "name": "approver_role",
+          "type": "string"
+        },
+        {
+          "name": "decided_at",
+          "type": "string"
+        },
+        {
+          "name": "granted",
+          "type": "boolean"
+        }
+      ]
+    },
+    {
+      "name": "CreditDecision",
+      "attributes": [
+        {
+          "name": "band",
+          "type": "string"
+        },
+        {
+          "name": "decided_at",
+          "type": "string"
+        },
+        {
+          "name": "decision_id",
+          "type": "string"
+        },
+        {
+          "name": "outcome",
+          "type": "string"
+        },
+        {
+          "name": "reason_codes",
+          "type": "string"
+        },
+        {
+          "name": "score",
+          "type": "integer"
+        }
+      ]
+    },
+    {
+      "name": "DataResource",
+      "attributes": [
+        {
+          "name": "classification",
+          "type": "string"
+        },
+        {
+          "name": "controller",
+          "type": "string"
+        },
+        {
+          "name": "lawful_basis",
+          "type": "string"
+        },
+        {
+          "name": "resource_id",
+          "type": "string"
+        },
+        {
+          "name": "resource_type",
+          "type": "string"
+        },
+        {
+          "name": "retention_class",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "name": "HumanApprover",
+      "attributes": [
+        {
+          "name": "approver_id",
+          "type": "string"
+        },
+        {
+          "name": "authority_level",
+          "type": "integer"
+        },
+        {
+          "name": "role",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "name": "Model",
+      "attributes": [
+        {
+          "name": "model_id",
+          "type": "string"
+        },
+        {
+          "name": "provider",
+          "type": "string"
+        },
+        {
+          "name": "version",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "name": "PolicyVersion",
+      "attributes": [
+        {
+          "name": "effective_from",
+          "type": "string"
+        },
+        {
+          "name": "effective_to",
+          "type": "string"
+        },
+        {
+          "name": "policy_id",
+          "type": "string"
+        },
+        {
+          "name": "version",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "name": "Prompt",
+      "attributes": [
+        {
+          "name": "prompt_name",
+          "type": "string"
+        },
+        {
+          "name": "prompt_version",
+          "type": "string"
+        },
+        {
+          "name": "template_hash",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "name": "Session",
+      "attributes": [
+        {
+          "name": "session_id",
+          "type": "string"
+        },
+        {
+          "name": "workflow_name",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "name": "Tool",
+      "attributes": [
+        {
+          "name": "tool_name",
+          "type": "string"
+        },
+        {
+          "name": "tool_type",
+          "type": "string"
+        }
+      ]
+    }
+  ],
+  "eventTypes": [
+    {
+      "name": "call_llm",
+      "attributes": [
+        {
+          "name": "max_tokens",
+          "type": "integer"
+        },
+        {
+          "name": "model_seed",
+          "type": "integer"
+        },
+        {
+          "name": "purpose",
+          "type": "string"
+        },
+        {
+          "name": "temperature",
+          "type": "float"
+        }
+      ]
+    },
+    {
+      "name": "call_tool",
+      "attributes": [
+        {
+          "name": "status",
+          "type": "string"
+        },
+        {
+          "name": "tool_call_id",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "name": "deny_approval",
+      "attributes": [
+        {
+          "name": "approver_role",
+          "type": "string"
+        },
+        {
+          "name": "authority_level",
+          "type": "integer"
+        },
+        {
+          "name": "override_reason",
+          "type": "string"
+        },
+        {
+          "name": "rationale_hash",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "name": "emit_reasoning",
+      "attributes": [
+        {
+          "name": "reasoning_kind",
+          "type": "string"
+        },
+        {
+          "name": "text_hash",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "name": "grant_approval",
+      "attributes": [
+        {
+          "name": "approver_role",
+          "type": "string"
+        },
+        {
+          "name": "authority_level",
+          "type": "integer"
+        },
+        {
+          "name": "rationale_hash",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "name": "handoff",
+      "attributes": [
+        {
+          "name": "handoff_kind",
+          "type": "string"
+        },
+        {
+          "name": "reason",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "name": "invoke_agent",
+      "attributes": [
+        {
+          "name": "agent_role",
+          "type": "string"
+        },
+        {
+          "name": "step_index",
+          "type": "integer"
+        }
+      ]
+    },
+    {
+      "name": "make_decision",
+      "attributes": [
+        {
+          "name": "adverse",
+          "type": "boolean"
+        },
+        {
+          "name": "outcome",
+          "type": "string"
+        },
+        {
+          "name": "reason_codes",
+          "type": "string"
+        },
+        {
+          "name": "score",
+          "type": "integer"
+        }
+      ]
+    },
+    {
+      "name": "notify_applicant",
+      "attributes": [
+        {
+          "name": "adverse_action_notice",
+          "type": "boolean"
+        },
+        {
+          "name": "channel",
+          "type": "string"
+        },
+        {
+          "name": "contains_reason_codes",
+          "type": "boolean"
+        }
+      ]
+    },
+    {
+      "name": "request_approval",
+      "attributes": [
+        {
+          "name": "amount_dm",
+          "type": "integer"
+        },
+        {
+          "name": "proposed_outcome",
+          "type": "string"
+        },
+        {
+          "name": "proposed_score",
+          "type": "integer"
+        },
+        {
+          "name": "required_role",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "name": "retrieve_data",
+      "attributes": [
+        {
+          "name": "purpose",
+          "type": "string"
+        },
+        {
+          "name": "record_count",
+          "type": "integer"
+        },
+        {
+          "name": "resource_type",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "name": "session_end",
+      "attributes": [
+        {
+          "name": "duration_seconds",
+          "type": "integer"
+        },
+        {
+          "name": "event_count",
+          "type": "integer"
+        },
+        {
+          "name": "outcome",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "name": "session_start",
+      "attributes": [
+        {
+          "name": "scenario_name",
+          "type": "string"
+        },
+        {
+          "name": "seed",
+          "type": "integer"
+        }
+      ]
+    }
+  ],
+  "objects": [
+    {
+      "id": "AGT-ADJ",
+      "type": "Agent",
+      "attributes": [
+        {
+          "name": "agent_id",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "AGT-ADJ"
+        },
+        {
+          "name": "framework",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "langgraph"
+        },
+        {
+          "name": "name",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "adjudication"
+        },
+        {
+          "name": "role",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "adjudication"
+        },
+        {
+          "name": "version",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "1.0.0"
+        }
+      ]
+    },
+    {
+      "id": "AGT-INTAKE",
+      "type": "Agent",
+      "attributes": [
+        {
+          "name": "agent_id",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "AGT-INTAKE"
+        },
+        {
+          "name": "framework",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "langgraph"
+        },
+        {
+          "name": "name",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "intake"
+        },
+        {
+          "name": "role",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "intake"
+        },
+        {
+          "name": "version",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "1.0.0"
+        }
+      ],
+      "relationships": [
+        {
+          "objectId": "AGT-ADJ",
+          "qualifier": "delegates_to"
+        }
+      ]
+    },
+    {
+      "id": "CUST-A",
+      "type": "Applicant",
+      "attributes": [
+        {
+          "name": "applicant_id",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "CUST-A"
+        },
+        {
+          "name": "jurisdiction",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "DE"
+        },
+        {
+          "name": "pseudonym_scheme",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "sha256_salted"
+        }
+      ]
+    },
+    {
+      "id": "CUST-B",
+      "type": "Applicant",
+      "attributes": [
+        {
+          "name": "applicant_id",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "CUST-B"
+        },
+        {
+          "name": "jurisdiction",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "DE"
+        },
+        {
+          "name": "pseudonym_scheme",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "sha256_salted"
+        }
+      ]
+    },
+    {
+      "id": "APP-A",
+      "type": "Application",
+      "attributes": [
+        {
+          "name": "amount",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "4870"
+        },
+        {
+          "name": "application_id",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "APP-A"
+        },
+        {
+          "name": "currency",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "DM"
+        },
+        {
+          "name": "product_type",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "consumer_loan"
+        },
+        {
+          "name": "purpose",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "radio_tv"
+        },
+        {
+          "name": "submitted_at",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "2026-03-02T08:55:00Z"
+        },
+        {
+          "name": "term_months",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "24"
+        }
+      ],
+      "relationships": [
+        {
+          "objectId": "CUST-A",
+          "qualifier": "submitted_by"
+        }
+      ]
+    },
+    {
+      "id": "APP-B",
+      "type": "Application",
+      "attributes": [
+        {
+          "name": "amount",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "9055"
+        },
+        {
+          "name": "application_id",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "APP-B"
+        },
+        {
+          "name": "currency",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "DM"
+        },
+        {
+          "name": "product_type",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "consumer_loan"
+        },
+        {
+          "name": "purpose",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "education"
+        },
+        {
+          "name": "submitted_at",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "2026-03-02T08:57:00Z"
+        },
+        {
+          "name": "term_months",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "36"
+        }
+      ],
+      "relationships": [
+        {
+          "objectId": "CUST-B",
+          "qualifier": "submitted_by"
+        }
+      ]
+    },
+    {
+      "id": "APRV-A",
+      "type": "Approval",
+      "attributes": [
+        {
+          "name": "approval_id",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "APRV-A"
+        },
+        {
+          "name": "approver_role",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "senior_credit_officer"
+        },
+        {
+          "name": "decided_at",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "2026-03-02T09:00:13Z"
+        },
+        {
+          "name": "granted",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "id": "APRV-B",
+      "type": "Approval",
+      "attributes": [
+        {
+          "name": "approval_id",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "APRV-B"
+        },
+        {
+          "name": "approver_role",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "senior_credit_officer"
+        },
+        {
+          "name": "decided_at",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "2026-03-02T09:00:10Z"
+        },
+        {
+          "name": "granted",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "false"
+        }
+      ]
+    },
+    {
+      "id": "DEC-A",
+      "type": "CreditDecision",
+      "attributes": [
+        {
+          "name": "band",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "A"
+        },
+        {
+          "name": "decided_at",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "2026-03-02T09:00:15Z"
+        },
+        {
+          "name": "decision_id",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "DEC-A"
+        },
+        {
+          "name": "outcome",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "grant"
+        },
+        {
+          "name": "reason_codes",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "[]"
+        },
+        {
+          "name": "score",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "612"
+        }
+      ],
+      "relationships": [
+        {
+          "objectId": "APP-A",
+          "qualifier": "derived_from"
+        }
+      ]
+    },
+    {
+      "id": "DEC-B",
+      "type": "CreditDecision",
+      "attributes": [
+        {
+          "name": "band",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "D"
+        },
+        {
+          "name": "decided_at",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "2026-03-02T09:00:12Z"
+        },
+        {
+          "name": "decision_id",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "DEC-B"
+        },
+        {
+          "name": "outcome",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "refer"
+        },
+        {
+          "name": "reason_codes",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "[\"RC03\",\"RC98\"]"
+        },
+        {
+          "name": "score",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "441"
+        }
+      ],
+      "relationships": [
+        {
+          "objectId": "APP-B",
+          "qualifier": "derived_from"
+        }
+      ]
+    },
+    {
+      "id": "RES-BUREAU",
+      "type": "DataResource",
+      "attributes": [
+        {
+          "name": "classification",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "internal"
+        },
+        {
+          "name": "controller",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "bureau_gmbh"
+        },
+        {
+          "name": "lawful_basis",
+          "time": "1970-01-01T00:00:00Z",
+          "value": ""
+        },
+        {
+          "name": "resource_id",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "RES-BUREAU"
+        },
+        {
+          "name": "resource_type",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "credit_bureau"
+        },
+        {
+          "name": "retention_class",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "std_7y"
+        }
+      ]
+    },
+    {
+      "id": "HUM-APPR-1",
+      "type": "HumanApprover",
+      "attributes": [
+        {
+          "name": "approver_id",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "HUM-APPR-1"
+        },
+        {
+          "name": "authority_level",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "2"
+        },
+        {
+          "name": "role",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "senior_credit_officer"
+        }
+      ]
+    },
+    {
+      "id": "MDL-HAIKU",
+      "type": "Model",
+      "attributes": [
+        {
+          "name": "model_id",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "claude-haiku-4-5"
+        },
+        {
+          "name": "provider",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "anthropic"
+        },
+        {
+          "name": "version",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "2025-10"
+        }
+      ]
+    },
+    {
+      "id": "POL-CS-2025-11",
+      "type": "PolicyVersion",
+      "attributes": [
+        {
+          "name": "effective_from",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "2025-11-01T00:00:00Z"
+        },
+        {
+          "name": "effective_to",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "2026-01-31T23:59:59Z"
+        },
+        {
+          "name": "policy_id",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "POL-CREDIT"
+        },
+        {
+          "name": "version",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "2025.11"
+        }
+      ]
+    },
+    {
+      "id": "POL-CS-2026-02",
+      "type": "PolicyVersion",
+      "attributes": [
+        {
+          "name": "effective_from",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "2026-02-01T00:00:00Z"
+        },
+        {
+          "name": "effective_to",
+          "time": "1970-01-01T00:00:00Z",
+          "value": ""
+        },
+        {
+          "name": "policy_id",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "POL-CREDIT"
+        },
+        {
+          "name": "version",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "2026.02"
+        }
+      ]
+    },
+    {
+      "id": "PRM-INTAKE-3",
+      "type": "Prompt",
+      "attributes": [
+        {
+          "name": "prompt_name",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "intake_summary"
+        },
+        {
+          "name": "prompt_version",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "3"
+        },
+        {
+          "name": "template_hash",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "a3f1c9d2e8b74650"
+        }
+      ]
+    },
+    {
+      "id": "SES-A",
+      "type": "Session",
+      "attributes": [
+        {
+          "name": "session_id",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "SES-A"
+        },
+        {
+          "name": "workflow_name",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "credit_scoring"
+        }
+      ]
+    },
+    {
+      "id": "SES-B",
+      "type": "Session",
+      "attributes": [
+        {
+          "name": "session_id",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "SES-B"
+        },
+        {
+          "name": "workflow_name",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "credit_scoring"
+        }
+      ]
+    },
+    {
+      "id": "TL-SCORECARD",
+      "type": "Tool",
+      "attributes": [
+        {
+          "name": "tool_name",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "scorecard"
+        },
+        {
+          "name": "tool_type",
+          "time": "1970-01-01T00:00:00Z",
+          "value": "deterministic_function"
+        }
+      ]
+    }
+  ],
+  "events": [
+    {
+      "id": "EV-A-01",
+      "type": "session_start",
+      "time": "2026-03-02T09:00:00Z",
+      "attributes": [
+        {
+          "name": "scenario_name",
+          "value": "credit_scoring"
+        },
+        {
+          "name": "seed",
+          "value": "42"
+        }
+      ],
+      "relationships": [
+        {
+          "objectId": "APP-A",
+          "qualifier": "declares"
+        },
+        {
+          "objectId": "CUST-A",
+          "qualifier": "declares"
+        },
+        {
+          "objectId": "POL-CS-2025-11",
+          "qualifier": "declares"
+        },
+        {
+          "objectId": "POL-CS-2026-02",
+          "qualifier": "governed_by"
+        },
+        {
+          "objectId": "SES-A",
+          "qualifier": "declares"
+        }
+      ]
+    },
+    {
+      "id": "EV-A-02",
+      "type": "invoke_agent",
+      "time": "2026-03-02T09:00:01Z",
+      "attributes": [
+        {
+          "name": "agent_role",
+          "value": "intake"
+        },
+        {
+          "name": "step_index",
+          "value": "1"
+        }
+      ],
+      "relationships": [
+        {
+          "objectId": "AGT-INTAKE",
+          "qualifier": "performed_by"
+        },
+        {
+          "objectId": "APP-A",
+          "qualifier": "concerns"
+        },
+        {
+          "objectId": "SES-A",
+          "qualifier": "within"
+        }
+      ]
+    },
+    {
+      "id": "EV-B-01",
+      "type": "session_start",
+      "time": "2026-03-02T09:00:02Z",
+      "attributes": [
+        {
+          "name": "scenario_name",
+          "value": "credit_scoring"
+        },
+        {
+          "name": "seed",
+          "value": "42"
+        }
+      ],
+      "relationships": [
+        {
+          "objectId": "APP-B",
+          "qualifier": "declares"
+        },
+        {
+          "objectId": "CUST-B",
+          "qualifier": "declares"
+        },
+        {
+          "objectId": "POL-CS-2026-02",
+          "qualifier": "governed_by"
+        },
+        {
+          "objectId": "SES-B",
+          "qualifier": "declares"
+        }
+      ]
+    },
+    {
+      "id": "EV-A-03",
+      "type": "call_llm",
+      "time": "2026-03-02T09:00:03Z",
+      "attributes": [
+        {
+          "name": "max_tokens",
+          "value": "1024"
+        },
+        {
+          "name": "model_seed",
+          "value": "42"
+        },
+        {
+          "name": "purpose",
+          "value": "intake_summary"
+        },
+        {
+          "name": "temperature",
+          "value": "0.0"
+        }
+      ],
+      "relationships": [
+        {
+          "objectId": "AGT-INTAKE",
+          "qualifier": "performed_by"
+        },
+        {
+          "objectId": "APP-A",
+          "qualifier": "concerns"
+        },
+        {
+          "objectId": "MDL-HAIKU",
+          "qualifier": "uses"
+        },
+        {
+          "objectId": "PRM-INTAKE-3",
+          "qualifier": "uses"
+        },
+        {
+          "objectId": "SES-A",
+          "qualifier": "within"
+        }
+      ]
+    },
+    {
+      "id": "EV-B-02",
+      "type": "invoke_agent",
+      "time": "2026-03-02T09:00:04Z",
+      "attributes": [
+        {
+          "name": "agent_role",
+          "value": "intake"
+        },
+        {
+          "name": "step_index",
+          "value": "1"
+        }
+      ],
+      "relationships": [
+        {
+          "objectId": "AGT-INTAKE",
+          "qualifier": "performed_by"
+        },
+        {
+          "objectId": "APP-B",
+          "qualifier": "concerns"
+        },
+        {
+          "objectId": "SES-B",
+          "qualifier": "within"
+        }
+      ]
+    },
+    {
+      "id": "EV-A-04",
+      "type": "call_tool",
+      "time": "2026-03-02T09:00:05Z",
+      "attributes": [
+        {
+          "name": "status",
+          "value": "ok"
+        },
+        {
+          "name": "tool_call_id",
+          "value": "TC-A-01"
+        }
+      ],
+      "relationships": [
+        {
+          "objectId": "AGT-INTAKE",
+          "qualifier": "performed_by"
+        },
+        {
+          "objectId": "APP-A",
+          "qualifier": "concerns"
+        },
+        {
+          "objectId": "SES-A",
+          "qualifier": "within"
+        },
+        {
+          "objectId": "TL-SCORECARD",
+          "qualifier": "uses"
+        }
+      ]
+    },
+    {
+      "id": "EV-B-03",
+      "type": "handoff",
+      "time": "2026-03-02T09:00:06Z",
+      "attributes": [
+        {
+          "name": "handoff_kind",
+          "value": "escalation"
+        },
+        {
+          "name": "reason",
+          "value": "adjudication_required"
+        }
+      ],
+      "relationships": [
+        {
+          "objectId": "AGT-ADJ",
+          "qualifier": "to"
+        },
+        {
+          "objectId": "AGT-INTAKE",
+          "qualifier": "from"
+        },
+        {
+          "objectId": "APP-B",
+          "qualifier": "concerns"
+        },
+        {
+          "objectId": "SES-B",
+          "qualifier": "within"
+        }
+      ]
+    },
+    {
+      "id": "EV-A-05",
+      "type": "retrieve_data",
+      "time": "2026-03-02T09:00:07Z",
+      "attributes": [
+        {
+          "name": "purpose",
+          "value": "credit_assessment"
+        },
+        {
+          "name": "record_count",
+          "value": "1"
+        },
+        {
+          "name": "resource_type",
+          "value": "credit_bureau"
+        }
+      ],
+      "relationships": [
+        {
+          "objectId": "AGT-INTAKE",
+          "qualifier": "performed_by"
+        },
+        {
+          "objectId": "APP-A",
+          "qualifier": "concerns"
+        },
+        {
+          "objectId": "CUST-A",
+          "qualifier": "concerns"
+        },
+        {
+          "objectId": "RES-BUREAU",
+          "qualifier": "reads"
+        },
+        {
+          "objectId": "SES-A",
+          "qualifier": "within"
+        }
+      ]
+    },
+    {
+      "id": "EV-B-04",
+      "type": "request_approval",
+      "time": "2026-03-02T09:00:08Z",
+      "attributes": [
+        {
+          "name": "amount_dm",
+          "value": "9055"
+        },
+        {
+          "name": "proposed_outcome",
+          "value": "deny"
+        },
+        {
+          "name": "proposed_score",
+          "value": "441"
+        },
+        {
+          "name": "required_role",
+          "value": "senior_credit_officer"
+        }
+      ],
+      "relationships": [
+        {
+          "objectId": "AGT-ADJ",
+          "qualifier": "performed_by"
+        },
+        {
+          "objectId": "APP-B",
+          "qualifier": "concerns"
+        },
+        {
+          "objectId": "APRV-B",
+          "qualifier": "requests"
+        },
+        {
+          "objectId": "DEC-B",
+          "qualifier": "concerns"
+        },
+        {
+          "objectId": "HUM-APPR-1",
+          "qualifier": "concerns"
+        },
+        {
+          "objectId": "SES-B",
+          "qualifier": "within"
+        }
+      ]
+    },
+    {
+      "id": "EV-A-06",
+      "type": "emit_reasoning",
+      "time": "2026-03-02T09:00:09Z",
+      "attributes": [
+        {
+          "name": "reasoning_kind",
+          "value": "scoring_rationale"
+        },
+        {
+          "name": "text_hash",
+          "value": "0f2e6c1a9b8d7345"
+        }
+      ],
+      "relationships": [
+        {
+          "objectId": "AGT-INTAKE",
+          "qualifier": "performed_by"
+        },
+        {
+          "objectId": "APP-A",
+          "qualifier": "concerns"
+        },
+        {
+          "objectId": "DEC-A",
+          "qualifier": "explains"
+        },
+        {
+          "objectId": "SES-A",
+          "qualifier": "within"
+        }
+      ]
+    },
+    {
+      "id": "EV-B-05",
+      "type": "deny_approval",
+      "time": "2026-03-02T09:00:10Z",
+      "attributes": [
+        {
+          "name": "approver_role",
+          "value": "senior_credit_officer"
+        },
+        {
+          "name": "authority_level",
+          "value": "2"
+        },
+        {
+          "name": "override_reason",
+          "value": "insufficient_collateral_evidence"
+        },
+        {
+          "name": "rationale_hash",
+          "value": "7b6a5948e3d2c1f0"
+        }
+      ],
+      "relationships": [
+        {
+          "objectId": "APP-B",
+          "qualifier": "concerns"
+        },
+        {
+          "objectId": "APRV-B",
+          "qualifier": "produces"
+        },
+        {
+          "objectId": "DEC-B",
+          "qualifier": "concerns"
+        },
+        {
+          "objectId": "HUM-APPR-1",
+          "qualifier": "performed_by"
+        },
+        {
+          "objectId": "SES-B",
+          "qualifier": "within"
+        }
+      ]
+    },
+    {
+      "id": "EV-A-07",
+      "type": "request_approval",
+      "time": "2026-03-02T09:00:11Z",
+      "attributes": [
+        {
+          "name": "amount_dm",
+          "value": "4870"
+        },
+        {
+          "name": "proposed_outcome",
+          "value": "grant"
+        },
+        {
+          "name": "proposed_score",
+          "value": "612"
+        },
+        {
+          "name": "required_role",
+          "value": "senior_credit_officer"
+        }
+      ],
+      "relationships": [
+        {
+          "objectId": "AGT-INTAKE",
+          "qualifier": "performed_by"
+        },
+        {
+          "objectId": "APP-A",
+          "qualifier": "concerns"
+        },
+        {
+          "objectId": "APRV-A",
+          "qualifier": "requests"
+        },
+        {
+          "objectId": "DEC-A",
+          "qualifier": "concerns"
+        },
+        {
+          "objectId": "HUM-APPR-1",
+          "qualifier": "concerns"
+        },
+        {
+          "objectId": "SES-A",
+          "qualifier": "within"
+        }
+      ]
+    },
+    {
+      "id": "EV-B-06",
+      "type": "make_decision",
+      "time": "2026-03-02T09:00:12Z",
+      "attributes": [
+        {
+          "name": "adverse",
+          "value": "true"
+        },
+        {
+          "name": "outcome",
+          "value": "refer"
+        },
+        {
+          "name": "reason_codes",
+          "value": "[\"RC03\",\"RC98\"]"
+        },
+        {
+          "name": "score",
+          "value": "441"
+        }
+      ],
+      "relationships": [
+        {
+          "objectId": "AGT-ADJ",
+          "qualifier": "performed_by"
+        },
+        {
+          "objectId": "APP-B",
+          "qualifier": "concerns"
+        },
+        {
+          "objectId": "APRV-B",
+          "qualifier": "concerns"
+        },
+        {
+          "objectId": "CUST-B",
+          "qualifier": "concerns"
+        },
+        {
+          "objectId": "DEC-B",
+          "qualifier": "produces"
+        },
+        {
+          "objectId": "POL-CS-2026-02",
+          "qualifier": "governed_by"
+        },
+        {
+          "objectId": "SES-B",
+          "qualifier": "within"
+        }
+      ]
+    },
+    {
+      "id": "EV-A-08",
+      "type": "grant_approval",
+      "time": "2026-03-02T09:00:13Z",
+      "attributes": [
+        {
+          "name": "approver_role",
+          "value": "senior_credit_officer"
+        },
+        {
+          "name": "authority_level",
+          "value": "2"
+        },
+        {
+          "name": "rationale_hash",
+          "value": "5d4c3b2a19087f6e"
+        }
+      ],
+      "relationships": [
+        {
+          "objectId": "APP-A",
+          "qualifier": "concerns"
+        },
+        {
+          "objectId": "APRV-A",
+          "qualifier": "produces"
+        },
+        {
+          "objectId": "DEC-A",
+          "qualifier": "approves"
+        },
+        {
+          "objectId": "HUM-APPR-1",
+          "qualifier": "performed_by"
+        },
+        {
+          "objectId": "SES-A",
+          "qualifier": "within"
+        }
+      ]
+    },
+    {
+      "id": "EV-B-07",
+      "type": "session_end",
+      "time": "2026-03-02T09:00:14Z",
+      "attributes": [
+        {
+          "name": "duration_seconds",
+          "value": "12"
+        },
+        {
+          "name": "event_count",
+          "value": "7"
+        },
+        {
+          "name": "outcome",
+          "value": "refer"
+        }
+      ],
+      "relationships": [
+        {
+          "objectId": "APP-B",
+          "qualifier": "concerns"
+        },
+        {
+          "objectId": "DEC-B",
+          "qualifier": "concerns"
+        },
+        {
+          "objectId": "SES-B",
+          "qualifier": "within"
+        }
+      ]
+    },
+    {
+      "id": "EV-A-09",
+      "type": "make_decision",
+      "time": "2026-03-02T09:00:15Z",
+      "attributes": [
+        {
+          "name": "adverse",
+          "value": "false"
+        },
+        {
+          "name": "outcome",
+          "value": "grant"
+        },
+        {
+          "name": "reason_codes",
+          "value": "[]"
+        },
+        {
+          "name": "score",
+          "value": "612"
+        }
+      ],
+      "relationships": [
+        {
+          "objectId": "AGT-ADJ",
+          "qualifier": "performed_by"
+        },
+        {
+          "objectId": "APP-A",
+          "qualifier": "concerns"
+        },
+        {
+          "objectId": "APRV-A",
+          "qualifier": "concerns"
+        },
+        {
+          "objectId": "CUST-A",
+          "qualifier": "concerns"
+        },
+        {
+          "objectId": "DEC-A",
+          "qualifier": "produces"
+        },
+        {
+          "objectId": "POL-CS-2026-02",
+          "qualifier": "governed_by"
+        },
+        {
+          "objectId": "SES-A",
+          "qualifier": "within"
+        }
+      ]
+    },
+    {
+      "id": "EV-A-10",
+      "type": "notify_applicant",
+      "time": "2026-03-02T09:00:17Z",
+      "attributes": [
+        {
+          "name": "adverse_action_notice",
+          "value": "false"
+        },
+        {
+          "name": "channel",
+          "value": "email"
+        },
+        {
+          "name": "contains_reason_codes",
+          "value": "false"
+        }
+      ],
+      "relationships": [
+        {
+          "objectId": "AGT-INTAKE",
+          "qualifier": "performed_by"
+        },
+        {
+          "objectId": "APP-A",
+          "qualifier": "concerns"
+        },
+        {
+          "objectId": "CUST-A",
+          "qualifier": "concerns"
+        },
+        {
+          "objectId": "DEC-A",
+          "qualifier": "concerns"
+        },
+        {
+          "objectId": "SES-A",
+          "qualifier": "within"
+        }
+      ]
+    },
+    {
+      "id": "EV-A-11",
+      "type": "session_end",
+      "time": "2026-03-02T09:00:19Z",
+      "attributes": [
+        {
+          "name": "duration_seconds",
+          "value": "19"
+        },
+        {
+          "name": "event_count",
+          "value": "11"
+        },
+        {
+          "name": "outcome",
+          "value": "grant"
+        }
+      ],
+      "relationships": [
+        {
+          "objectId": "APP-A",
+          "qualifier": "concerns"
+        },
+        {
+          "objectId": "DEC-A",
+          "qualifier": "concerns"
+        },
+        {
+          "objectId": "SES-A",
+          "qualifier": "within"
+        }
+      ]
+    }
+  ]
+}

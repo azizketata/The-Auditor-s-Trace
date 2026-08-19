@@ -8,3 +8,6 @@
 *.jsonl -text
 *.data -text
 tests/golden/** -text
+# Vendored OCEL 2.0 standard schemas: byte-identical to their published
+# source (sha256s recorded in tests/fixtures/ocel2/README.md).
+tests/fixtures/ocel2/** -text

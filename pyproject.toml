@@ -48,6 +48,7 @@ dev = [
     "ruff==0.16.2",
     "mypy==2.3.0",
     "types-PyYAML==6.0.12.20250915",
+    "jsonschema==4.26.0",  # OCEL 2.0 official-schema validation in tests only; never imported by src/
 ]
 
 [tool.hatch.build.targets.wheel]
@@ -75,12 +76,14 @@ strict = true
 python_version = "3.11"
 files = ["src"]
 
-# Only pm4py and matplotlib lack a py.typed marker; langchain, langgraph,
-# opentelemetry, and openinference all ship one, so --strict checks our use
-# of them for real.
+# Only pm4py, pandas, and matplotlib lack a py.typed marker; langchain,
+# langgraph, opentelemetry, and openinference all ship one, so --strict
+# checks our use of them for real. pandas crosses our code solely at the
+# model/io.py boundary, where every value is isinstance-narrowed on entry.
 [[tool.mypy.overrides]]
 module = [
     "pm4py.*",
+    "pandas.*",
     "matplotlib.*",
 ]
 ignore_missing_imports = true
