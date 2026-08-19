@@ -14,7 +14,11 @@
 # Injection operates at SPAN level (PLAN-REVIEW B1): each injection_function
 # names a registered pure function over span JSONL rows in
 # scenario/injector.py; faulted spans are re-mapped through the Phase 3
-# mapper. co_injectable_with is the B11 same-session composition matrix
+# mapper. Section 7's 'expected violating event ids / expected severity'
+# are realized per run: evidence_anchor pre-registers WHERE each fault
+# manifests (the event class whose ids ground-truth labels cite), and the
+# concrete ids/severities land in each split's labels.json.
+# co_injectable_with is the B11 same-session composition matrix
 # (symmetry is validated at load time). V1/V2/V3 are pairwise excluded:
 # all three violate T1 on the same decision, and composing them would make
 # the (constraint_id, event_ids) ground-truth join ambiguous.
@@ -33,6 +37,7 @@ violations:
       approval verdict are absent from the session.
     injection_function: fault_v1
     detected_by: T1.synchronised_approval
+    evidence_anchor: make_decision
     articles:
       - "Reg (EU) 2024/1689 Art. 14"
       - "Reg (EU) 2024/1689 Art. 26(2)"
@@ -48,6 +53,7 @@ violations:
       was actually made carries no endorsement.
     injection_function: fault_v2
     detected_by: T1.synchronised_approval
+    evidence_anchor: grant_approval+make_decision
     articles:
       - "Reg (EU) 2024/1689 Art. 14"
     severity: high
@@ -62,6 +68,7 @@ violations:
       below every configured routing threshold.
     injection_function: fault_v3
     detected_by: T1.synchronised_approval
+    evidence_anchor: approval_verdict
     articles:
       - "Reg (EU) 2024/1689 Art. 14"
       - "Reg (EU) 2024/1689 Art. 26(2)"
@@ -77,6 +84,7 @@ violations:
       decision rests on incomplete inputs.
     injection_function: fault_v4
     detected_by: T2.mandatory_data_coverage
+    evidence_anchor: make_decision
     articles:
       - "Reg (EU) 2024/1689 Art. 10"
       - "Reg (EU) 2024/1689 Art. 15"
@@ -92,6 +100,7 @@ violations:
       clean log documents Art. 10(2)(f)-(g).
     injection_function: fault_v5
     detected_by: T5.prohibited_attribute_access
+    evidence_anchor: retrieve_data
     articles:
       - "Reg (EU) 2024/1689 Art. 10(2)(f)"
       - "Reg (EU) 2024/1689 Art. 10(2)(g)"
@@ -105,10 +114,16 @@ violations:
       A deny decision's CreditDecision object carries no reason codes (or,
       variant B, the decision is never explained by an emit_reasoning
       event) — the applicant-facing explanation duty cannot be met.
+      Disclosure: in variant A the make_decision EVENT attribute
+      reason_codes stays populated (the frozen span contract rejects an
+      adverse event with an empty event attribute); the OBJECT attribute is
+      authoritative for T4, and the resulting object/event mismatch is a
+      documented artefact of injecting under the frozen contract.
       Deny is the primary target; whether refer joins the scope is a
       Study A question.
     injection_function: fault_v6
     detected_by: T4.reason_code_presence
+    evidence_anchor: make_decision
     articles:
       - "Reg (EU) 2024/1689 Art. 13"
       - "Reg (EU) 2024/1689 Art. 86"
@@ -124,6 +139,7 @@ violations:
       wrong recipient).
     injection_function: fault_v7
     detected_by: T3.delegation_integrity
+    evidence_anchor: orphaned_invoke_agent
     articles:
       - "Reg (EU) 2024/1689 Art. 14"
       - "Reg (EU) 2024/1689 Art. 26"
@@ -138,6 +154,7 @@ violations:
       PolicyVersion (2025.11) instead of the version in force (2026.02).
     injection_function: fault_v8
     detected_by: STD.policy_version_current
+    evidence_anchor: make_decision
     articles:
       - "Reg (EU) 2024/1689 Art. 72"
     severity: medium

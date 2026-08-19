@@ -167,6 +167,94 @@ def test_composed_injections_have_consistent_ground_truth(splits: Path) -> None:
             assert donor_decision not in t1_faulted_decisions, v.violation_id
 
 
+def test_extended_catalogue_allocates_its_extra_class(base_run: Path, tmp_path: Path) -> None:
+    """The held-out extension seam works end to end: a catalogue with an
+    extra class (here V9 reusing a registered function) gets its full quota
+    — the old hard-coded V1..V8 order silently under-injected it (review
+    finding, 19 Aug 2026)."""
+    import yaml
+
+    from auditors_trace.scenario.injector import inject_run, load_catalogue, read_labels
+
+    doc = yaml.safe_load(CATALOGUE.read_text(encoding="utf-8"))
+    v9 = dict(doc["violations"][7])  # clone V8's entry shape
+    v9.update(
+        {
+            "id": "V9",
+            "name": "heldout_stand_in",
+            "description": "Extension-seam regression stand-in reusing fault_v8.",
+            "co_injectable_with": [],
+        }
+    )
+    doc["violations"].append(v9)
+    for entry in doc["violations"]:
+        entry["co_injectable_with"] = [c for c in entry["co_injectable_with"] if c != "V9"]
+    extended = tmp_path / "violations_extended.yaml"
+    extended.write_text(yaml.safe_dump(doc, sort_keys=False), encoding="utf-8")
+
+    out = tmp_path / "out"
+    inject_run(
+        base_run,
+        out,
+        7,
+        load_catalogue(extended),
+        {"clean": 3, "single": 9, "mixed": 4},  # 9 = 9 classes x quota 1
+    )
+    labels = read_labels(out / "single" / "labels.json")
+    counts: dict[str, int] = {}
+    for violation in labels.violations:
+        counts[violation.fault_class] = counts.get(violation.fault_class, 0) + 1
+    assert counts == {f"V{i}": 1 for i in range(1, 10)}
+
+
+def test_d1_approver_mirror_matches_the_scenario_catalogue() -> None:
+    """_D1_APPROVER mirrors APR-003 from scenario_credit.yaml (which may
+    never be edited); this is the drift guard the comment promises."""
+    import yaml
+
+    from auditors_trace.scenario.injector import _D1_APPROVER
+
+    scenario = yaml.safe_load(
+        (REPO / "data" / "catalogue" / "scenario_credit.yaml").read_text(encoding="utf-8")
+    )
+    apr_003 = next(a for a in scenario["approvers"] if a["approver_id"] == "APR-003")
+    mirror = dict(_D1_APPROVER)
+    assert mirror["approver_id"] == apr_003["approver_id"]
+    assert mirror["role"] == apr_003["role"]
+    assert mirror["authority_level"] == apr_003["authority_level"]
+
+
+def test_distractors_are_recorded_and_disjoint_from_violations(splits: Path) -> None:
+    from auditors_trace.scenario.injector import read_labels
+
+    for split in ("single", "mixed"):
+        labels = read_labels(splits / split / "labels.json")
+        kinds = {d.kind for d in labels.distractors}
+        assert "D1_authority_boundary" in kinds, split
+        violation_spans = {
+            span_id
+            for v in labels.violations
+            for span_id in (*v.expected_evidence_span_ids, *v.removed_span_ids)
+        }
+        t1_sessions = {v.session_id for v in labels.violations if v.constraint_id.startswith("T1.")}
+        for distractor in labels.distractors:
+            if distractor.kind == "D1_authority_boundary":
+                assert distractor.session_id not in t1_sessions
+                assert not (set(distractor.span_ids) & violation_spans)
+        # D2 (natural refer-without-approval) is recorded per refer session.
+        refer_d2 = [d for d in labels.distractors if d.kind == "D2_refer_without_approval"]
+        assert all(d.span_ids == () for d in refer_d2)
+
+
+def test_zero_distractors_means_zero(base_run: Path, tmp_path: Path) -> None:
+    from auditors_trace.scenario.injector import inject_run, load_catalogue, read_labels
+
+    inject_run(base_run, tmp_path / "nod1", 7, load_catalogue(CATALOGUE), SIZES, distractor_count=0)
+    for split in ("single", "mixed"):
+        labels = read_labels(tmp_path / "nod1" / split / "labels.json")
+        assert not any(d.kind == "D1_authority_boundary" for d in labels.distractors)
+
+
 def test_each_split_reaches_its_quota(splits: Path) -> None:
     from auditors_trace.scenario.injector import read_labels
 
@@ -192,8 +280,13 @@ def test_infeasible_sizes_raise_actionably(base_run: Path, tmp_path: Path) -> No
 
 
 def test_catalogue_hash_matches_tag() -> None:
-    from auditors_trace.scenario.injector import catalogue_hash
+    """Skip-until-tag with a post-freeze fail-safe: once catalogue_version
+    stops saying '-draft', a missing or lightweight tag is a FAILURE, not a
+    skip (review finding, 19 Aug 2026 — a deleted local tag must not make
+    the freeze guard silently vanish)."""
+    from auditors_trace.scenario.injector import catalogue_hash, load_catalogue
 
+    catalogue = load_catalogue(CATALOGUE)
     proc = subprocess.run(
         ["git", "tag", "-l", "catalogue-v1"],
         capture_output=True,
@@ -202,7 +295,20 @@ def test_catalogue_hash_matches_tag() -> None:
         check=False,
     )
     if "catalogue-v1" not in proc.stdout:
-        pytest.skip("catalogue-v1 not yet tagged - freeze is gated on Study A")
+        if catalogue.catalogue_version.endswith("-draft"):
+            pytest.skip("catalogue-v1 not yet tagged - freeze is gated on Study A")
+        pytest.fail(
+            f"catalogue_version is {catalogue.catalogue_version!r} (not a draft) "
+            "but the catalogue-v1 tag is absent - the freeze guard must not vanish"
+        )
+    tag_type = subprocess.run(
+        ["git", "cat-file", "-t", "catalogue-v1"],
+        capture_output=True,
+        text=True,
+        cwd=REPO,
+        check=True,
+    ).stdout.strip()
+    assert tag_type == "tag", "catalogue-v1 must be an ANNOTATED tag, not lightweight"
     message = subprocess.run(
         ["git", "tag", "-l", "--format=%(contents)", "catalogue-v1"],
         capture_output=True,
@@ -254,7 +360,8 @@ class TestInjectCli:
             assert (tmp_path / "out" / split / "manifest.json").exists()
             assert (tmp_path / "out" / split / "labels.json").exists()
 
-    def test_infeasible_sizes_exit_2(self, base_run: Path, tmp_path: Path) -> None:
+    def test_infeasible_sizes_exit_6(self, base_run: Path, tmp_path: Path) -> None:
+        # Data-level infeasibility is exit 6, distinct from usage errors (2).
         from auditors_trace.scenario.__main__ import main
 
         code = main(
@@ -271,4 +378,63 @@ class TestInjectCli:
                 "--quiet",
             ]
         )
+        assert code == 6
+
+    def test_sizes_must_name_all_three_splits(self, base_run: Path, tmp_path: Path) -> None:
+        from auditors_trace.scenario.__main__ import main
+
+        code = main(
+            [
+                "inject",
+                "--spans",
+                str(base_run),
+                "--seed",
+                "7",
+                "--out",
+                str(tmp_path / "out"),
+                "--sizes",
+                "single=8,mixed=8",
+                "--quiet",
+            ]
+        )
         assert code == 2
+
+    def test_duplicate_sizes_key_rejected(self, base_run: Path, tmp_path: Path) -> None:
+        from auditors_trace.scenario.__main__ import main
+
+        code = main(
+            [
+                "inject",
+                "--spans",
+                str(base_run),
+                "--seed",
+                "7",
+                "--out",
+                str(tmp_path / "out"),
+                "--sizes",
+                "clean=4,single=8,mixed=2,mixed=2",
+                "--quiet",
+            ]
+        )
+        assert code == 2
+
+    def test_auto_sizes_partition_the_fixture(self, base_run: Path, tmp_path: Path) -> None:
+        # auto on a 16-session run resolves to clean=4/single=8/mixed=4.
+        from auditors_trace.scenario.__main__ import main
+        from auditors_trace.scenario.injector import read_labels
+
+        code = main(
+            [
+                "inject",
+                "--spans",
+                str(base_run),
+                "--seed",
+                "7",
+                "--out",
+                str(tmp_path / "auto"),
+                "--quiet",
+            ]
+        )
+        assert code == 0
+        labels = read_labels(tmp_path / "auto" / "single" / "labels.json")
+        assert len(labels.violations) == 8

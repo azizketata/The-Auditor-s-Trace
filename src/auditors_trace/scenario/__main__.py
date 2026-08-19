@@ -7,8 +7,12 @@ Subcommands:
 - ``describe`` — print the span contract and catalogue (text or JSON), so the
   paper's appendix table is generated from code rather than hand-copied
 
-Exit codes: 0 ok | 2 usage | 3 seed unavailable | 4 span contract violation |
-5 span truncation.
+Subcommand ``inject`` additionally exists (Phase 4): inject catalogue
+violations into a base run, producing the clean/single/mixed splits.
+
+Exit codes: 0 ok | 2 usage or catalogue error | 3 input unavailable |
+4 span contract violation | 5 span truncation | 6 injection infeasible
+(quota, donor, or base-run integrity).
 """
 
 from __future__ import annotations
@@ -93,8 +97,12 @@ def build_parser() -> argparse.ArgumentParser:
     inject.add_argument(
         "--sizes",
         type=str,
-        default="clean=60,single=240,mixed=60",
-        help="comma-separated split sizes; must partition the run exactly",
+        default="auto",
+        help=(
+            "'auto' (1:4:1 partition of the run), or explicit "
+            "'clean=N,single=N,mixed=N' naming ALL THREE splits; must "
+            "partition the run exactly"
+        ),
     )
     inject.add_argument(
         "--distractors",
@@ -137,27 +145,60 @@ def _cmd_run(args: argparse.Namespace) -> int:
 
 
 def _cmd_inject(args: argparse.Namespace) -> int:
+    import json as _json
+
     from auditors_trace.scenario.injector import (
         InjectionError,
         InjectionInputMissingError,
         Split,
+        auto_split_sizes,
         inject_run,
         load_catalogue,
     )
 
-    sizes: dict[Split, int] = {}
-    try:
-        for part in args.sizes.split(","):
-            name, _, raw = part.partition("=")
-            if name not in ("clean", "single", "mixed") or not raw.isdigit():
-                raise ValueError(f"bad --sizes fragment {part!r}")
-            sizes[name] = int(raw)
-    except ValueError as exc:
-        print(f"usage error: {exc}", file=sys.stderr)
+    if args.distractors < 0:
+        print("usage error: --distractors must be >= 0", file=sys.stderr)
         return 2
 
     try:
         catalogue = load_catalogue(args.catalogue)
+    except FileNotFoundError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 3
+    except ValueError as exc:
+        print(f"catalogue error: {exc}", file=sys.stderr)
+        return 2
+
+    sizes: dict[Split, int]
+    if args.sizes == "auto":
+        manifest_path = args.spans / "manifest.json"
+        if not manifest_path.exists():
+            print(f"error: no such manifest: {manifest_path}", file=sys.stderr)
+            return 3
+        try:
+            total = int(_json.loads(manifest_path.read_text(encoding="utf-8"))["session_count"])
+            sizes = auto_split_sizes(total, class_count=len(catalogue.entries))
+        except (ValueError, KeyError, InjectionError) as exc:
+            print(f"error: {exc}", file=sys.stderr)
+            return 2
+    else:
+        sizes = {}
+        try:
+            for part in args.sizes.split(","):
+                name, _, raw = part.partition("=")
+                if name not in ("clean", "single", "mixed") or not raw.isdigit():
+                    raise ValueError(f"bad --sizes fragment {part!r}")
+                if name in sizes:
+                    raise ValueError(f"duplicate split name {name!r} in --sizes")
+                sizes[name] = int(raw)
+            missing = {"clean", "single", "mixed"} - set(sizes)
+            if missing:
+                raise ValueError(f"--sizes must name all three splits; missing {sorted(missing)}")
+        except ValueError as exc:
+            print(f"usage error: {exc}", file=sys.stderr)
+            return 2
+
+    try:
         results = inject_run(
             args.spans,
             args.out,
@@ -177,8 +218,11 @@ def _cmd_inject(args: argparse.Namespace) -> int:
         print(f"error: {exc}", file=sys.stderr)
         return 3
     except InjectionError as exc:
-        print(f"injection error: {exc}", file=sys.stderr)
-        return 2
+        # Data-level infeasibility or integrity failure — distinct from a
+        # usage error so automation can tell "fix your flags" (2) from
+        # "this base run + seed cannot satisfy the catalogue" (6).
+        print(f"injection infeasible: {exc}", file=sys.stderr)
+        return 6
     except (OSError, ValueError) as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 3

@@ -110,8 +110,14 @@ _ENTRY_KEYS: Final[frozenset[str]] = frozenset(
         "severity",
         "perturbation_axes",
         "co_injectable_with",
+        "evidence_anchor",
     }
 )
+_SEVERITIES: Final[frozenset[str]] = frozenset({"high", "medium", "low"})
+#: A legal article reference must actually name an article ("Art. <n>...");
+#: hard rule 4 is about substance, not just non-emptiness — "TBD" fails.
+_ARTICLE_PATTERN: Final = r"Art\.\s*\d"
+_CONSTRAINT_ID_PATTERN: Final = r"^[A-Z][A-Z0-9]*\.[a-z][a-z0-9_]*$"
 _TOP_KEYS: Final[frozenset[str]] = frozenset(
     {"schema_version", "catalogue_version", "scenario_name", "scenario_version", "violations"}
 )
@@ -130,6 +136,7 @@ class CatalogueEntry:
     severity: str
     perturbation_axes: tuple[str, ...]
     co_injectable_with: tuple[str, ...]
+    evidence_anchor: str
 
 
 @dataclass(frozen=True, slots=True)
@@ -151,9 +158,14 @@ def catalogue_hash(path: Path) -> str:
 
 def load_catalogue(path: Path) -> Catalogue:
     """Load the catalogue. Raises if any entry lacks an article reference."""
-    doc = yaml.safe_load(path.read_text(encoding="utf-8"))
+    try:
+        doc = yaml.safe_load(path.read_text(encoding="utf-8"))
+    except yaml.YAMLError as exc:
+        raise ValueError(f"{path.name}: not valid YAML: {exc}") from exc
     if not isinstance(doc, dict):
         raise ValueError(f"{path.name}: catalogue is not a mapping")
+    if doc.get("schema_version") != 1:
+        raise ValueError(f"{path.name}: schema_version {doc.get('schema_version')!r} is not 1")
     unknown_top = set(doc) - _TOP_KEYS
     if unknown_top:
         raise ValueError(f"{path.name}: unknown top-level key(s) {sorted(unknown_top)}")
@@ -176,11 +188,26 @@ def load_catalogue(path: Path) -> Catalogue:
             raise ValueError(
                 f"{path.name}: entry {raw.get('id', '?')} missing key(s) {sorted(missing)}"
             )
+        import re as _re
+
         articles = tuple(str(a) for a in raw["articles"])
-        if not articles or any(not a.strip() for a in articles):
+        if not articles or any(not _re.search(_ARTICLE_PATTERN, a) for a in articles):
             raise ValueError(
-                f"{path.name}: entry {raw['id']} has no legal article reference; "
-                "hard rule 4 — rulesets without one fail validation by design"
+                f"{path.name}: entry {raw['id']} lacks a substantive legal article "
+                f"reference (need 'Art. <number>'); hard rule 4 — rulesets without "
+                "one fail validation by design"
+            )
+        severity = str(raw["severity"])
+        if severity not in _SEVERITIES:
+            raise ValueError(
+                f"{path.name}: entry {raw['id']} severity {severity!r} is not one "
+                f"of {sorted(_SEVERITIES)}"
+            )
+        constraint_id = str(raw["detected_by"])
+        if not _re.match(_CONSTRAINT_ID_PATTERN, constraint_id):
+            raise ValueError(
+                f"{path.name}: entry {raw['id']} detected_by {constraint_id!r} does "
+                "not look like a constraint id (e.g. T1.synchronised_approval)"
             )
         function_name = str(raw["injection_function"])
         if function_name not in REGISTRY:
@@ -194,11 +221,12 @@ def load_catalogue(path: Path) -> Catalogue:
                 name=str(raw["name"]),
                 description=str(raw["description"]),
                 injection_function=function_name,
-                constraint_id=str(raw["detected_by"]),
+                constraint_id=constraint_id,
                 articles=articles,
-                severity=str(raw["severity"]),
+                severity=severity,
                 perturbation_axes=tuple(str(a) for a in raw["perturbation_axes"]),
                 co_injectable_with=tuple(str(v) for v in raw["co_injectable_with"]),
+                evidence_anchor=str(raw["evidence_anchor"]),
             )
         )
 
@@ -481,7 +509,13 @@ def _session_view(rows: SessionRows) -> SessionView:
     if len(decisions) != 1:
         raise InjectionError(f"session {session_id!r} has {len(decisions)} make_decision events")
     _, decision_spec = decisions[0]
-    outcome = str(dict(decision_spec.attributes)["outcome"])
+    decision_attrs = dict(decision_spec.attributes)
+    if "outcome" not in decision_attrs:
+        raise InjectionError(
+            f"session {session_id!r}: make_decision carries no outcome attribute; "
+            "this is not a well-formed base run"
+        )
+    outcome = str(decision_attrs["outcome"])
     decision_id = next(
         ref.object_id
         for ref in decision_spec.objects
@@ -495,7 +529,13 @@ def _session_view(rows: SessionRows) -> SessionView:
     handoffs = tuple(row["span_id"] for row, _ in _events_by_type(rows, EventType.HANDOFF))
     retrieves: list[tuple[str, str]] = []
     for row, spec in _events_by_type(rows, EventType.RETRIEVE_DATA):
-        retrieves.append((str(dict(spec.attributes)["resource_type"]), str(row["span_id"])))
+        attrs = dict(spec.attributes)
+        if "resource_type" not in attrs:
+            raise InjectionError(
+                f"session {session_id!r}: retrieve_data span {row['span_id']} carries "
+                "no resource_type attribute; this is not a well-formed base run"
+            )
+        retrieves.append((str(attrs["resource_type"]), str(row["span_id"])))
     return SessionView(
         session_id=session_id,
         outcome=outcome,
@@ -681,11 +721,14 @@ def fault_v3(rows: SessionRows, ctx: FaultContext) -> InjectionResult:
             session_id=ctx.session.session_id,
             ocel_event_ids=(verdict_spec.event_id,),
             ocel_object_ids=(rogue_id,),
-            expected_evidence_span_ids=(verdict_row["span_id"],),
+            # Both mutated spans: the request span carries the rogue
+            # approver's only attribute declaration (review finding — the
+            # labels must account for all mutated telemetry).
+            expected_evidence_span_ids=(request_row["span_id"], verdict_row["span_id"]),
             removed_span_ids=(),
             severity=ctx.entry.severity,
             articles=ctx.entry.articles,
-            description=ctx.entry.description,
+            description=f"{ctx.entry.description} (rogue_role: {rogue_role})",
         ),
     )
 
@@ -731,7 +774,7 @@ def fault_v4(rows: SessionRows, ctx: FaultContext) -> InjectionResult:
             removed_span_ids=tuple(sorted(removed)),
             severity=ctx.entry.severity,
             articles=ctx.entry.articles,
-            description=f"{ctx.entry.description} (source: {source})",
+            description=f"{ctx.entry.description} (source: {source}, mode: {delete_mode})",
         ),
     )
 
@@ -1105,11 +1148,32 @@ EVENT_ID_NOTE: Final[str] = (
     "renumbered densely"
 )
 
-#: Scarcity-first allocation order: the most outcome-constrained classes bind
-#: their sessions before the anywhere-eligible classes absorb the rest.
-_SCARCITY_ORDER: Final[tuple[str, ...]] = ("V6", "V1", "V2", "V3", "V4", "V5", "V7", "V8")
 
-_T1_CLASSES: Final[frozenset[str]] = frozenset({"V1", "V2", "V3"})
+def _scarcity_order(
+    entries: Sequence[CatalogueEntry],
+    session_ids: Sequence[str],
+    views: Mapping[str, SessionView],
+) -> tuple[CatalogueEntry, ...]:
+    """Catalogue-driven scarcity order: smallest eligibility pool first.
+
+    Computed from the actual sessions rather than hard-coded, so a held-out
+    catalogue with extra classes allocates correctly with zero code edits
+    (the register() extension seam) — a hard-coded V1..V8 tuple silently
+    under-injected additional entries (review finding, 19 Aug 2026).
+    """
+
+    def pool(entry: CatalogueEntry) -> int:
+        return sum(
+            1 for sid in session_ids if REGISTRY[entry.injection_function].eligible(views[sid])
+        )
+
+    return tuple(sorted(entries, key=lambda e: (pool(e), e.entry_id)))
+
+
+def _t1_classes(catalogue: Catalogue) -> frozenset[str]:
+    """Classes sharing T1: pairwise-excluded and barred from V2 donorship."""
+    return frozenset(e.entry_id for e in catalogue.entries if e.constraint_id.startswith("T1."))
+
 
 _MANIFEST_KEYS: Final[tuple[str, ...]] = (
     "catalogue_sha256",
@@ -1269,9 +1333,33 @@ def read_labels(path: Path) -> LabelsFile:
     )
 
 
+def auto_split_sizes(total: int, class_count: int = 8) -> dict[Split, int]:
+    """The default 1:4:1 partition: single = the largest class-divisible
+    chunk of ~2/3 of the run; the remainder halves into clean and mixed.
+
+    360 sessions -> clean 60 / single 240 / mixed 60 (the documented
+    corpus); 50 -> 9/32/9; 16 -> 4/8/4 (the test fixture).
+    """
+    single = class_count * ((4 * total // 6) // class_count)
+    if single == 0:
+        raise InjectionError(
+            f"a run of {total} sessions is too small for even one instance per "
+            f"class ({class_count} classes); increase --n"
+        )
+    remainder = total - single
+    clean = remainder // 2
+    return {"clean": clean, "single": single, "mixed": remainder - clean}
+
+
 def _partition(
     session_ids: list[str], seed: int, split_sizes: Mapping[Split, int]
 ) -> dict[Split, list[str]]:
+    missing = [split for split in SPLITS if split not in split_sizes]
+    if missing:
+        raise InjectionError(
+            f"split sizes must name all three splits; missing {missing} "
+            "(pass an explicit 0 if a split is intentionally empty)"
+        )
     total = sum(split_sizes.get(split, 0) for split in SPLITS)
     if total != len(session_ids):
         raise InjectionError(
@@ -1301,11 +1389,9 @@ def _allocate_single(
             f"{len(catalogue.entries)} classes; choose a divisible size"
         )
     quota = len(session_ids) // len(catalogue.entries)
-    by_id = {e.entry_id: e for e in catalogue.entries}
     unassigned = set(session_ids)
     assignment: dict[str, list[str]] = {}
-    for entry_id in _SCARCITY_ORDER:
-        entry = by_id[entry_id]
+    for entry in _scarcity_order(catalogue.entries, session_ids, views):
         eligible = [
             sid
             for sid in sorted(unassigned)
@@ -1313,12 +1399,12 @@ def _allocate_single(
         ]
         if len(eligible) < quota:
             raise InjectionError(
-                f"class {entry_id} needs {quota} eligible sessions in the single "
-                f"split but only {len(eligible)} qualify; increase --n"
+                f"class {entry.entry_id} needs {quota} eligible sessions in the "
+                f"single split but only {len(eligible)} qualify; increase --n"
             )
-        chosen = sorted(eligible, key=lambda sid: _rank(seed, entry_id, sid))[:quota]
+        chosen = sorted(eligible, key=lambda sid: _rank(seed, entry.entry_id, sid))[:quota]
         for sid in chosen:
-            assignment[sid] = [entry_id]
+            assignment[sid] = [entry.entry_id]
             unassigned.discard(sid)
     return assignment
 
@@ -1339,7 +1425,10 @@ def _allocate_mixed(
         fraction = int(_rank(seed, "k", sid)[:8], 16) / 0xFFFFFFFF
         k = sum(1 for threshold in _MIXED_K_THRESHOLDS if fraction >= threshold)
         chosen: list[str] = []
-        candidates = sorted(_SCARCITY_ORDER, key=lambda entry_id: _rank(seed, "mix", sid, entry_id))
+        candidates = sorted(
+            (e.entry_id for e in catalogue.entries),
+            key=lambda entry_id: _rank(seed, "mix", sid, entry_id),
+        )
         for entry_id in candidates:
             if len(chosen) == k:
                 break
@@ -1366,30 +1455,51 @@ def inject_run(
     A pure function of the base run's bytes, the seed, and the catalogue:
     running it twice produces byte-identical trees.
     """
+    if distractor_count < 0:
+        raise InjectionError(f"distractor_count must be >= 0, got {distractor_count}")
     manifest = _read_base_manifest(span_dir)
     if str(manifest["scenario_name"]) != catalogue.scenario_name:
         raise InjectionError(
             f"catalogue is bound to scenario {catalogue.scenario_name!r} but the run "
             f"is {manifest['scenario_name']!r}"
         )
+    if str(manifest["scenario_version"]) != catalogue.scenario_version:
+        raise InjectionError(
+            f"catalogue is bound to scenario version {catalogue.scenario_version!r} "
+            f"but the run is {manifest['scenario_version']!r}; fault surgery is "
+            "built against one scenario structure"
+        )
 
     file_by_session: dict[str, str] = {}
     raw_bytes: dict[str, bytes] = {}
     rows_by_session: dict[str, SessionRows] = {}
     views: dict[str, SessionView] = {}
-    for filename, _digest in manifest["files"]:
+    for filename, expected_digest in manifest["files"]:
         path = span_dir / str(filename)
         if not path.exists():
             raise InjectionInputMissingError(f"manifest lists {filename} but it does not exist")
+        payload_bytes = path.read_bytes()
+        digest = hashlib.sha256(payload_bytes).hexdigest()
+        if digest != str(expected_digest):
+            raise InjectionError(
+                f"{filename}: sha256 mismatch against the base manifest; refusing "
+                "to inject into a base run that is not intact"
+            )
         rows = _load_session_rows(path)
         view = _session_view(rows)
         file_by_session[view.session_id] = str(filename)
-        raw_bytes[view.session_id] = path.read_bytes()
+        raw_bytes[view.session_id] = payload_bytes
         rows_by_session[view.session_id] = rows
         views[view.session_id] = view
+    if len(views) != int(manifest["session_count"]):
+        raise InjectionError(
+            f"base manifest declares session_count={manifest['session_count']} but "
+            f"{len(views)} sessions were read"
+        )
 
     partition = _partition(sorted(views), seed, split_sizes)
     by_entry_id = {e.entry_id: e for e in catalogue.entries}
+    t1_classes = _t1_classes(catalogue)
 
     assignments: dict[Split, dict[str, list[str]]] = {
         "clean": {sid: [] for sid in partition["clean"]},
@@ -1399,36 +1509,56 @@ def inject_run(
     for sid in partition["single"]:
         assignments["single"].setdefault(sid, [])
 
+    # Validate V2 donor availability at ALLOCATION time — a mid-write failure
+    # would otherwise leave a partial output tree (review finding).
+    donor_ids_by_split: dict[Split, tuple[str, ...]] = {}
+    for split in SPLITS:
+        split_assignment = assignments[split]
+        session_ids = partition[split]
+        donors = tuple(
+            views[sid].decision_id
+            for sid in session_ids
+            if not (t1_classes & set(split_assignment.get(sid, ())))
+        )
+        donor_ids_by_split[split] = donors
+        for sid in session_ids:
+            if "V2" in split_assignment.get(sid, ()) and not any(
+                d != views[sid].decision_id for d in donors
+            ):
+                raise InjectionError(
+                    f"V2 on {sid} in the {split} split has no eligible co-split "
+                    "donor decision; use a different seed or a larger split"
+                )
+
     results: dict[Split, tuple[GroundTruthViolation, ...]] = {}
     for split in SPLITS:
         split_assignment = assignments[split]
         session_ids = partition[split]
-
-        # V2 donor pool: co-split sessions carrying no T1-class fault (a
-        # repointed approves edge aimed at a T1-faulted session's decision
-        # would corrupt that session's ground truth).
-        donor_ids = tuple(
-            views[sid].decision_id
-            for sid in session_ids
-            if not (_T1_CLASSES & set(split_assignment.get(sid, ())))
-        )
+        donor_ids = donor_ids_by_split[split]
 
         # D1 distractors: approval sessions carrying no T1-class fault.
-        if split == "clean":
+        if split == "clean" or distractor_count == 0:
             d1_sessions: set[str] = set()
         else:
             d1_pool = [
                 sid
                 for sid in session_ids
                 if views[sid].outcome in ("grant", "deny")
-                and not (_T1_CLASSES & set(split_assignment.get(sid, ())))
+                and not (t1_classes & set(split_assignment.get(sid, ())))
             ]
             d1_take = distractor_count if split == "single" else max(1, distractor_count // 4)
             d1_sessions = set(sorted(d1_pool, key=lambda sid: _rank(seed, "D1", sid))[:d1_take])
 
         violations: list[GroundTruthViolation] = []
         distractors: list[Distractor] = []
-        out_split = out_dir / split
+        # Write into a temp directory and swap it in whole, so a mid-run
+        # failure can never leave a stale-but-self-consistent split behind.
+        final_split = out_dir / split
+        out_split = out_dir / f"{split}.tmp"
+        if out_split.exists():
+            import shutil
+
+            shutil.rmtree(out_split)
         out_split.mkdir(parents=True, exist_ok=True)
         files: list[tuple[str, str]] = []
 
@@ -1475,6 +1605,28 @@ def inject_run(
             _atomic_write_bytes(out_split / filename, payload)
             files.append((filename, hashlib.sha256(payload).hexdigest()))
 
+        # Natural near-miss distractors (B2): D2 refer-without-approval is
+        # already present in clean telemetry wherever the human declined —
+        # recorded so FP analysis can find it. (D3, the special-category read
+        # WITH a documented basis, occurs in every session and is documented
+        # in the catalogue rather than enumerated per session.)
+        if split != "clean":
+            for sid in session_ids:
+                if views[sid].outcome == "refer":
+                    distractors.append(
+                        Distractor(
+                            distractor_id=_rank(seed, "D2", "id", sid)[:16],
+                            kind="D2_refer_without_approval",
+                            session_id=sid,
+                            span_ids=(),
+                            description=(
+                                "natural: the human approver declined and the "
+                                "decision escalated to refer, which requires no "
+                                "prior approval - a near-miss for T1"
+                            ),
+                        )
+                    )
+
         _write_split_manifest(out_split, manifest, files)
         write_labels(
             out_split / "labels.json",
@@ -1490,5 +1642,11 @@ def inject_run(
                 distractors=tuple(distractors),
             ),
         )
+        # Swap the finished split into place atomically (directory-level).
+        if final_split.exists():
+            import shutil
+
+            shutil.rmtree(final_split)
+        os.replace(out_split, final_split)
         results[split] = tuple(violations)
     return results
