@@ -606,7 +606,11 @@ def fault_v1(rows: SessionRows, ctx: FaultContext) -> InjectionResult:
     )
 
 
-@register("fault_v2", eligible=lambda s: s.has_grant_approval)
+# Outcome-gated like V1/V3: a refer decision carries no approval obligation
+# (the catalogue's clean-split-safety rule), so a repointed approval in a
+# refer session would be ground truth the pre-registered T1 semantics cannot
+# flag. Surfaced by the Phase 5 recall gate, 19 Aug 2026.
+@register("fault_v2", eligible=lambda s: s.has_grant_approval and s.outcome in ("grant", "deny"))
 def fault_v2(rows: SessionRows, ctx: FaultContext) -> InjectionResult:
     """Repoint the approval's `approves` relation at a donor session's decision."""
     donors = [d for d in ctx.donor_decision_ids if d != ctx.session.decision_id]

@@ -494,3 +494,41 @@ class TestRemainingFaultsMap:
         ]
         assert governed == ["POL-CREDIT-2025.11"]
         assert draft.ocel_object_ids == ("POL-CREDIT-2025.11",)
+
+
+class TestEligibility:
+    def test_v2_is_never_eligible_in_refer_sessions(self) -> None:
+        """A refer decision carries no approval obligation (the catalogue's own
+        clean-split-safety rule), so a repointed approval in a refer session is
+        invisible to the pre-registered T1 semantics: V2 ground truth there is
+        unmatchable by design. Surfaced by the Phase 5 recall gate (11 of 30 V2
+        labels sat in grant-then-refer sessions); V2 eligibility must gate on
+        the outcome exactly like V1 and V3."""
+        from auditors_trace.scenario.injector import SessionView
+
+        def view(outcome: str) -> SessionView:
+            return SessionView(
+                session_id="SESS-X",
+                outcome=outcome,
+                decision_id="DEC-X",
+                has_grant_approval=True,
+                approver_id="APR-001",
+                handoff_span_ids=(),
+                retrieve_span_ids_by_source=(),
+            )
+
+        eligible = REGISTRY["fault_v2"].eligible
+        assert eligible(view("grant"))
+        assert eligible(view("deny"))
+        assert not eligible(view("refer"))
+        # And never without an approval to repoint, whatever the outcome.
+        no_approval = SessionView(
+            session_id="SESS-X",
+            outcome="deny",
+            decision_id="DEC-X",
+            has_grant_approval=False,
+            approver_id=None,
+            handoff_span_ids=(),
+            retrieve_span_ids_by_source=(),
+        )
+        assert not eligible(no_approval)
