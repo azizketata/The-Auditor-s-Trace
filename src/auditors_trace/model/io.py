@@ -119,17 +119,22 @@ def _frame(rows: list[dict[str, object]], reserved: tuple[str, ...]) -> pd.DataF
     return pd.DataFrame([{c: row.get(c) for c in columns} for row in rows], columns=columns)
 
 
-def write_ocel(log: OCELLog, path: Path, serialisation: Serialisation) -> None:
-    """Write the log to ``path`` in the given serialisation, deterministically."""
-    path = Path(path)
+def to_pm4py(log: OCELLog) -> OCEL:
+    """Build pm4py's in-memory OCEL from the validated model (no file I/O).
+
+    Extracted verbatim from ``write_ocel``'s body (Phase 7 — the one surfaced
+    touch to this module): the baselines flatten and discover on this object
+    without a disk round trip. Attribute values are the registry-encoded
+    strings ``write_ocel`` has always produced (bool -> "true"/"false",
+    int -> str, float -> repr, tuple -> canonical JSON array string);
+    timestamps are ``pd.Timestamp``. Callers treat the returned frames as
+    opaque pm4py inputs — no pandas value ever enters a hash.
+    """
     if not log.events:
         raise OCELModelError(
-            "refusing to write an empty log: pm4py cannot re-read an OCEL file "
+            "refusing to build an empty OCEL: pm4py cannot re-read an OCEL "
             "with no events, so the round-trip contract would be unsatisfiable"
         )
-    if path.exists():
-        path.unlink()
-
     event_rows: list[dict[str, object]] = []
     relation_rows: list[dict[str, object]] = []
     types_by_id = {obj.object_id: obj.object_type for obj in log.objects}
@@ -162,12 +167,22 @@ def write_ocel(log: OCELLog, path: Path, serialisation: Serialisation) -> None:
         {_O: rel.source_id, _O + "_2": rel.target_id, _Q: rel.qualifier.value} for rel in log.o2o
     ]
 
-    ocel = OCEL(
+    return OCEL(
         events=_frame(event_rows, (_E, _A, _T)),
         objects=_frame(object_rows, (_O, _OT)),
         relations=pd.DataFrame(relation_rows, columns=[_E, _A, _T, _O, _OT, _Q]),
         o2o=pd.DataFrame(o2o_rows, columns=[_O, _O + "_2", _Q]),
     )
+
+
+def write_ocel(log: OCELLog, path: Path, serialisation: Serialisation) -> None:
+    """Write the log to ``path`` in the given serialisation, deterministically."""
+    path = Path(path)
+    if path.exists():
+        path.unlink()
+
+    ocel = to_pm4py(log)
+    types_by_id = {obj.object_id: obj.object_type for obj in log.objects}
 
     if serialisation == "json":
         pm4py.write_ocel2_json(ocel, str(path))

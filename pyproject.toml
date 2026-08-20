@@ -36,6 +36,13 @@ eval = [
     "pandas==3.0.5",
     "matplotlib==3.11.1",
 ]
+# The LLM-as-judge baseline (invariant I2's second and last LLM site).
+# Already present transitively via langchain-anthropic; declared here so
+# baselines/llm_judge.py never depends on an undeclared package
+# (BUILD-PLAN section 4 row added by the Phase 7 amendment, user-approved).
+judge = [
+    "anthropic==0.121.0",
+]
 
 [project.scripts]
 auditors-trace = "auditors_trace.cli:main"
