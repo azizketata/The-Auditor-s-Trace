@@ -117,6 +117,55 @@ def build_parser() -> argparse.ArgumentParser:
         help="markdown output path",
     )
 
+    judge = sub.add_parser(
+        "judge",
+        help="run the LLM-as-judge baseline over one split (dev split by default)",
+    )
+    judge.add_argument(
+        "--split-dir",
+        type=Path,
+        default=Path("data") / "generated" / "dev" / "single",
+        help="span split directory (manifest.json + SESS-*.jsonl)",
+    )
+    judge.add_argument(
+        "--ocel",
+        type=Path,
+        default=Path("data") / "generated" / "dev" / "ocel" / "single.jsonocel",
+        help="the split's OCEL log (for the serialized-OCEL condition)",
+    )
+    judge.add_argument(
+        "--model",
+        action="append",
+        choices=["claude-haiku-4-5", "claude-sonnet-5", "claude-opus-5"],
+        default=None,
+        help="judge model (repeatable; default: all three pinned tiers)",
+    )
+    judge.add_argument("--samples", type=int, default=5, help="repeated samples per input")
+    judge.add_argument(
+        "--condition", choices=["spans", "ocel", "both"], default="both", help="input condition(s)"
+    )
+    judge.add_argument(
+        "--cache-dir",
+        type=Path,
+        default=Path("data") / "generated" / "judge_cache",
+        help="the committed response cache",
+    )
+    judge.add_argument(
+        "--provider",
+        choices=["anthropic", "scripted"],
+        default="anthropic",
+        help="'anthropic' needs ANTHROPIC_API_KEY and the [judge] extra",
+    )
+    judge.add_argument("--prompts", type=Path, default=Path("rules") / "judge_prompts.yaml")
+    judge.add_argument("--rules-file", type=Path, default=Path("rules") / "rules.yaml")
+    judge.add_argument(
+        "--allow-evaluation",
+        action="store_true",
+        help="permit judging the evaluation base run — POST-FREEZE ONLY "
+        "(requires the catalogue-v1 tag to exist)",
+    )
+    judge.add_argument("--quiet", action="store_true", help="suppress the summary lines")
+
     return parser
 
 
@@ -323,6 +372,81 @@ def _cmd_pack(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_judge(args: argparse.Namespace) -> int:
+    from auditors_trace.baselines.llm_judge import (
+        JUDGE_MODELS,
+        EvaluationLockError,
+        JudgeError,
+        JudgeProviderUnavailableError,
+        cost_records,
+        judge_all,
+    )
+    from auditors_trace.model.io import detect_serialisation, read_ocel
+    from auditors_trace.model.log import OCELModelError
+
+    if not (args.split_dir / "manifest.json").is_file():
+        print(f"error: no such split manifest: {args.split_dir / 'manifest.json'}", file=sys.stderr)
+        return 3
+    if not args.ocel.is_file():
+        print(f"error: no such OCEL file: {args.ocel}", file=sys.stderr)
+        return 3
+    try:
+        log = read_ocel(args.ocel, detect_serialisation(args.ocel))
+    except (OCELModelError, ValueError) as exc:
+        print(f"log rejected: {exc}", file=sys.stderr)
+        return 7
+
+    conditions = ("spans", "ocel") if args.condition == "both" else (args.condition,)
+    try:
+        runs = judge_all(
+            args.split_dir,
+            log,
+            models=tuple(args.model) if args.model else JUDGE_MODELS,
+            samples=args.samples,
+            conditions=conditions,  # type: ignore[arg-type]
+            cache_dir=args.cache_dir,
+            prompts_path=args.prompts,
+            rules_path=args.rules_file,
+            provider=args.provider,
+            allow_evaluation=args.allow_evaluation,
+        )
+    except EvaluationLockError as exc:
+        print(f"evaluation lock: {exc}", file=sys.stderr)
+        return 4
+    except JudgeProviderUnavailableError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 3
+    except FileNotFoundError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 3
+    except (JudgeError, ValueError) as exc:
+        print(f"rejected: {exc}", file=sys.stderr)
+        return 7
+
+    if not args.quiet:
+        # Summary to stderr only: pm4py prints an AGPL banner to stdout on
+        # import, so nothing may parse this command's stdout.
+        fresh = [run for run in runs if not run.from_cache]
+        costs = cost_records(args.cache_dir, (run.cache_key for run in fresh))
+        by_group: dict[tuple[str, str], list[int]] = {}
+        for record in costs:
+            by_group.setdefault((record.model_id, record.condition), []).append(
+                record.input_tokens + record.output_tokens
+            )
+        failures = sum(1 for run in runs if run.schema_failure)
+        print(
+            f"{len(runs)} runs ({len(runs) - len(fresh)} cached, {len(fresh)} fresh), "
+            f"{failures} schema failures -> {args.cache_dir}",
+            file=sys.stderr,
+        )
+        for (model_id, condition), tokens in sorted(by_group.items()):
+            print(
+                f"  {model_id} [{condition}]: {len(tokens)} calls, {sum(tokens)} tokens",
+                file=sys.stderr,
+            )
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     """Dispatch a subcommand. Returns a process exit code."""
     parser = build_parser()
@@ -334,6 +458,8 @@ def main(argv: list[str] | None = None) -> int:
         return _cmd_check(args)
     if args.command == "pack":
         return _cmd_pack(args)
+    if args.command == "judge":
+        return _cmd_judge(args)
     parser.error(f"unknown command {args.command!r}")
 
 

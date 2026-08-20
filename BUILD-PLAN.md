@@ -710,6 +710,75 @@ DECLARE; richer flat encodings conceded in threats to validity.
 
 **DoD.** All pass, all LLM responses cached in `data/generated/judge_cache/`.
 
+*Phase 7 amendments (19 Aug 2026, recorded at implementation — resolutions of
+what the section left open, plus one measured correction):*
+
+1. *Judge models pinned (user decision): the three Anthropic tiers
+   `claude-haiku-4-5`, `claude-sonnet-5`, `claude-opus-5` — "3 current
+   frontier models" read as capability tiers, not vendors. Exact version
+   strings, display names, and created-at dates are recorded from the Models
+   API into each cache record's provenance at call time; single-vendor scope
+   is conceded in threats to validity.*
+2. *§4 gains a row: `anthropic` (LLM judge baseline, `[judge]` extra, pinned
+   0.121.0 — already transitively present via langchain-anthropic; now
+   declared, per hard rule 3 with user approval). The judge uses the
+   provider's native structured-output mode (`output_config` json_schema);
+   a tool-forced fallback sits behind the same seam and the mode used is
+   recorded per response as `structured_mode`.*
+3. *E1 mechanism correction (measured): B7's premise "handoffs lack an
+   Application relation" is FALSE on this corpus — every handoff `concerns`
+   an Application, and Application flattening keeps every event (0 dropped,
+   0 duplicated, all 706 handoffs). What flattening destroys is the
+   `ocel:qualifier` column and object identity. Measured control-flow
+   blindness on the single split: V2/V3/V5/V6/V8 30/30 invisible, V7 16/30,
+   V1/V4 0/30 — 166/240 = 69.2% of injected violations leave a flattened
+   activity sequence identical to a clean-split variant. The pre-registered
+   minimum (V2 and V7 undetectable) holds a fortiori.*
+4. *DECLARE scoring pre-registration: pm4py's deviations carry no event ids,
+   so `declare_flat.detect` cites anchors under a deterministic synthesis
+   rule (every `ocel:eid` in the deviating case whose activity is in the
+   deviation's pair; fallback the case's first event) with synthetic
+   `DECLARE.<template>` ids, and is scored via `session_match` (localisation
+   credit) ONLY — the exact join is structurally unwinnable for it, stated
+   in code. OC-DFG likewise: `OCDFG.novel_edge` detections cite the real
+   event-id pairs pm4py provides, session-credit-scored (anomaly detector,
+   not a classifier).*
+5. *The judge response cache is committed via a `.gitignore` exception
+   (`!data/generated/judge_cache/**`, the e2_coverage precedent) so the
+   evaluation replays without API access from a clean checkout (I5). Cost,
+   latency, usage tokens, and access dates live ONLY in cache records —
+   never on `JudgeRun`, never in any hashed artifact.*
+6. *The dev split is the seed-4207 partition (clean=10, single=32, mixed=8)
+   of the 50-session base run `e1f8535c07681d95` — disjoint by run id from
+   the evaluation base `f95aed68e789bb84`, whose three splits fully
+   partition spans360. Judge prompts are developed on it exclusively.*
+7. *The judge matching function lives in `rules/judge_matching.yaml`
+   (synonym map + `overlap_threshold: 1` + `session_credit: same_session`)
+   loaded by `eval/metrics.py::load_judge_matching`; `judge_matcher` plugs
+   into `confusion`'s matcher seam and never replaces the frozen
+   `exact_match`. Unmatched judge claims go to `adjudication_queue` and
+   count as false positives pending blind adjudication (B2).*
+8. *Evaluation lock: `judge_all` refuses any split whose manifest `run_id`
+   equals the evaluation base run unless `allow_evaluation=True` (CLI
+   `--allow-evaluation`, documented post-freeze-only) — the I4 "no
+   detection before the freeze" rule is enforced structurally.*
+9. *`modal_verdict` (whole-set agreement, what `determinism_score` measures;
+   schema failures form their own modal class) and `majority_vote`
+   (per-item ≥k-of-n, the strong aggregated judge) are distinct aggregators;
+   both ship.*
+10. *Judge outputs are NEVER rendered into §8 evidence records — records
+    are engine-only; the `Context`-empty affordance in `evidence/record.py`
+    exists for display experiments, not for the evidence path.*
+11. *The serialized-OCEL judge condition embeds foreign-object stubs
+    (objects owned by other sessions appear with `"foreign": true`), the
+    pre-registered input rule that keeps cross-session faults (V2) visible
+    to the judge — a strict per-session excerpt would blind the judge by
+    construction exactly as flattening does.*
+12. *`model/io.py` gained `to_pm4py` — a pure extraction of `write_ocel`'s
+    existing OCEL construction (the one surfaced touch to a frozen file),
+    regression-guarded by byte-stable goldens and an equivalence test, so
+    the baselines flatten in memory without a disk round trip.*
+
 ---
 
 ### Phase 8 — Evaluation harness

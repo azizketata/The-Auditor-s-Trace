@@ -137,8 +137,35 @@ rewrites `results/e2_coverage.json`; that committed file belongs to the
 `docs/study/evidence-example.md` is likewise derived: regenerate via
 `cli pack` (recompute-tested), never hand-edit.
 
-Still stubs: `baselines/`, and in `eval/` everything except
-`confusion`/`precision_recall_f1`.
+- `baselines/` — the Phase 7 comparison systems. `llm_judge.py`: three
+  pinned Anthropic tiers × 5 samples × two input conditions (raw spans /
+  per-session OCEL excerpt WITH foreign-object stubs — the rule that keeps
+  V2 judge-visible); committed response cache under
+  `data/generated/judge_cache/` (gitignore exception; cost/latency/access
+  dates live ONLY there); scripted provider for hermetic CI; the
+  EvaluationLockError guard refuses the evaluation base run
+  (f95aed68e789bb84) pre-freeze. `declare_flat.py`: per-case-notion
+  flattening + DECLARE conformance, session-credit-scored, anchor-synthesis
+  pre-registered; `flattening_matrix` is the E1 builder — measured: the
+  mechanism is QUALIFIER loss, not event loss; 166/240 (69.2%) of single-
+  split faults are control-flow-invisible under Application flattening
+  (V2/V3/V5/V6/V8 fully, V7 16/30). `ocdfg.py`: novel-edge anomaly detector
+  citing pm4py's real event-id pairs. `cli judge` runs the judge (defaults
+  to the dev split). `model/io.py::to_pm4py` was extracted from write_ocel
+  (the one surfaced frozen-file touch, regression-guarded). Freeze-bundle
+  items added: `rules/judge_prompts.yaml` (dev-1; prompts render their
+  rules block from rules.yaml at request time) and
+  `rules/judge_matching.yaml` (synonyms + overlap threshold; loader in
+  eval/metrics.py, which also gained determinism_score/judge_matcher/
+  session_match/adjudication_queue). The dev split (seed 4207 over the
+  50-session run e1f8535c07681d95: clean=10/single=32/mixed=8 +
+  data/generated/dev/ocel/) is the ONLY data prompts may be developed on;
+  live prompt iterations are BLOCKED on ANTHROPIC_API_KEY (see
+  docs/dev-judge-report.md). Judge outputs are never rendered into §8
+  evidence records.
+
+Still stubs: `eval/runner.py` and `eval/figures.py` (Phase 8), plus
+`eval/metrics.py::evidence_reproducibility`.
 `data/catalogue/scenario_credit.yaml` is the scenario catalogue — distinct
 from `violations.yaml` (draft; frozen only at the I4 freeze commit).
 Do NOT edit `scenario_credit.yaml`, even its comments: its byte hash feeds
